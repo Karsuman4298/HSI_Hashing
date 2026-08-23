@@ -5,8 +5,26 @@ from torch import nn
 try:
     from mamba_ssm import Mamba
 except ImportError:
-    Mamba = None
-    print("Warning: mamba_ssm is not installed. MambaHashNet will throw an error on instantiation if used.")
+    try:
+        from mamba_pure import MambaBlock, ModelArgs
+        class Mamba(nn.Module):
+            def __init__(self, d_model, d_state=16, d_conv=4, expand=2):
+                super().__init__()
+                args = ModelArgs(
+                    d_model=d_model,
+                    d_state=d_state,
+                    d_conv=d_conv,
+                    expand=expand,
+                    n_layer=1,
+                    vocab_size=1
+                )
+                self.block = MambaBlock(args)
+            def forward(self, x):
+                return self.block(x)
+        print("Notice: mamba_ssm not found. Using pure PyTorch fallback (mamba_pure.py). This will run anywhere but is slightly slower.")
+    except ImportError:
+        Mamba = None
+        print("Warning: mamba_ssm and mamba_pure are not installed.")
 
 class SpeMamba(nn.Module):
     def __init__(self,channels, token_num=8, use_residual=True, group_num=4):
