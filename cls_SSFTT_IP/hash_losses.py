@@ -293,7 +293,55 @@ class IDHNLoss(nn.Module):
 
         return loss1 + loss2
 
-__all__ = ["CSQLoss", "DPNLoss", "SupConLoss", "DSHLoss", "GreedyHashLoss", "HashNetLoss", "IDHNLoss", "OrthoHashLoss"]
+class DSPCHLoss(nn.Module):
+    def __init__(self, bit_length: int, num_classes: int):
+        super(DSPCHLoss, self).__init__()
+        # Pre-generate unique, fixed proxy binary codes for each class
+        torch.manual_seed(42)
+        proxies = torch.randn(num_classes, bit_length).sign()
+        self.register_buffer('class_proxies', proxies)
+
+    def forward(self, u: torch.Tensor, targets: torch.Tensor, ind: torch.Tensor = None, epoch: int = None) -> torch.Tensor:
+        # Fetch the shared target proxy for each sample based on its class
+        target_proxies = self.class_proxies[targets.long()]
+        # Mean Squared Error alignment to push codes toward their class proxies
+        alignment_loss = F.mse_loss(u, target_proxies)
+        # Quantization loss to force output values close to the discrete bounds (-1, 1)
+        quantization = torch.mean((torch.abs(u) - 1) ** 2)
+        return alignment_loss + 0.1 * quantization
+
+class BatchDHNNLoss(nn.Module):
+    """
+    Minimizes feature distance of similar pairs, maximizes distance of dissimilar pairs.
+    Operates dynamically on all pairs within a batch.
+    """
+    def __init__(self, bit_length: int, num_classes: int, margin=2.0):
+        super(BatchDHNNLoss, self).__init__()
+        self.margin = margin
+        # bit_length and num_classes accepted to match signature consistency
+
+    def forward(self, u: torch.Tensor, targets: torch.Tensor, ind: torch.Tensor = None, epoch: int = None) -> torch.Tensor:
+        # Compute exact squared Euclidean distance matrix
+        dist_matrix = torch.cdist(u, u, p=2).pow(2)
+        
+        # label_matrix[i, j] = 1 if same class, else 0
+        targets = targets.contiguous().view(-1, 1)
+        label_matrix = torch.eq(targets, targets.T).float()
+        
+        # Similar pairs loss
+        loss_similar = label_matrix * dist_matrix
+        
+        # Dissimilar pairs loss
+        loss_dissimilar = (1 - label_matrix) * torch.clamp(self.margin - torch.sqrt(dist_matrix + 1e-6), min=0.0).pow(2)
+        
+        # Average over all non-diagonal pairs
+        mask = torch.eye(targets.size(0), device=targets.device).bool()
+        loss_similar = loss_similar[~mask]
+        loss_dissimilar = loss_dissimilar[~mask]
+        
+        return torch.mean(loss_similar + loss_dissimilar)
+
+__all__ = ["CSQLoss", "DPNLoss", "SupConLoss", "DSHLoss", "GreedyHashLoss", "HashNetLoss", "IDHNLoss", "OrthoHashLoss", "DSPCHLoss", "BatchDHNNLoss"]
 
 def get_imbalance_mask(sigmoid_logits, labels, nclass, threshold=0.7, imbalance_scale=-1):
     if imbalance_scale == -1:

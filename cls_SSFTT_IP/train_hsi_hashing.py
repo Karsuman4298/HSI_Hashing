@@ -42,7 +42,7 @@ import matplotlib.pyplot as plt
 
 from SSFTTHashNet import SSFTTHashNet, CNNBaselineHashNet
 from MambaHashNet import MambaHashNet
-from hash_losses import CSQLoss, DPNLoss, SupConLoss, DSHLoss, GreedyHashLoss, HashNetLoss, IDHNLoss, OrthoHashLoss
+from hash_losses import CSQLoss, DPNLoss, SupConLoss, DSHLoss, GreedyHashLoss, HashNetLoss, IDHNLoss, OrthoHashLoss, DSPCHLoss, BatchDHNNLoss
 import get_cls_map  # existing visualization module
 from get_cls_map import get_classification_map, list_to_colormap, classification_map
 
@@ -765,7 +765,11 @@ def train(train_loader, db_loader, query_loader, num_classes, args):
     elif args.loss_type == "idhn":
         criterion = IDHNLoss(num_train=len(train_loader.dataset), bit_length=args.hash_bit_length, num_classes=num_classes, alpha=0.5, gamma=0.1, lambda_val=0.1).to(device)
     elif args.loss_type == "orthohash":
-        criterion = OrthoHashLoss(num_classes=num_classes, bit_length=args.hash_bit_length, ce=1, s=8, m=0.2, multiclass=False, quan=0, quan_type='cs').to(device)
+        criterion = OrthoHashLoss(num_classes=num_classes, bit_length=args.hash_bit_length).to(device)
+    elif args.loss_type == "dspch":
+        criterion = DSPCHLoss(num_classes=num_classes, bit_length=args.hash_bit_length).to(device)
+    elif args.loss_type == "dhnn":
+        criterion = BatchDHNNLoss(num_classes=num_classes, bit_length=args.hash_bit_length, margin=2.0).to(device)
     else:
         raise ValueError(f"Unknown loss type: {args.loss_type}")
 
@@ -807,7 +811,7 @@ def train(train_loader, db_loader, query_loader, num_classes, args):
             else:
                 logits = net(inputs)
 
-            if args.loss_type in ["dsh", "greedyhash", "hashnet", "idhn", "orthohash"]:
+            if args.loss_type in ["dsh", "greedyhash", "hashnet", "idhn", "orthohash", "dspch", "dhnn"]:
                 loss = criterion(logits, labels, ind=indices.to(device), epoch=epoch)
             else:
                 loss = criterion(logits, labels)
@@ -957,7 +961,8 @@ def parse_args():
     p.add_argument("--epochs",     type=int,   default=100)
     p.add_argument("--lr",         type=float, default=0.001)
     p.add_argument("--hash_bit_length", type=int, default=32)
-    p.add_argument("--loss_type", type=str, default="csq", choices=["csq", "dpn", "dsh", "greedyhash", "hashnet", "idhn", "orthohash"])
+    p.add_argument("--augment", action="store_true", help="Apply data augmentation")
+    p.add_argument("--loss_type", type=str, default="csq", choices=["csq", "dpn", "dsh", "greedyhash", "hashnet", "idhn", "orthohash", "dspch", "dhnn"])
     p.add_argument("--query_ratio", type=float, default=0.1, help="Fraction of test set used as queries")
     p.add_argument("--random_noise_eval", action="store_true", help="Overwrite inputs with random noise during eval")
     p.add_argument("--random_hash_eval", action="store_true", help="Completely ignore network, generate random binary hashes for eval")
