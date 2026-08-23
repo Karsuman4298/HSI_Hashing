@@ -10,12 +10,13 @@ from operator import truediv
 import get_cls_map
 import time
 import SSFTTnet
-
+import os
 
 def loadData():
     # 读入数据
-    data = sio.loadmat('../data/Indian_pines_corrected.mat')['indian_pines_corrected']
-    labels = sio.loadmat('../data/Indian_pines_gt.mat')['indian_pines_gt']
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    data = sio.loadmat(os.path.join(base_dir, 'data', 'Indian_pines_corrected.mat'))['indian_pines_corrected']
+    labels = sio.loadmat(os.path.join(base_dir, 'data', 'Indian_pines_gt.mat'))['indian_pines_gt']
 
     return data, labels
 
@@ -181,7 +182,7 @@ class TestDS(torch.utils.data.Dataset):
 def train(train_loader, epochs):
 
     # 使用GPU训练，可以在菜单 "代码执行工具" -> "更改运行时类型" 里进行设置
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
     # 网络放到GPU上
     net = SSFTTnet.SSFTTnet().to(device)
     # 交叉熵损失函数
@@ -262,7 +263,9 @@ if __name__ == '__main__':
     tic1 = time.perf_counter()
     net, device = train(train_loader, epochs=100)
     # 只保存模型参数
-    torch.save(net.state_dict(), 'cls_params/SSFTTnet_params.pth')
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(os.path.join(base_dir, 'cls_params'), exist_ok=True)
+    torch.save(net.state_dict(), os.path.join(base_dir, 'cls_params', 'SSFTTnet_params.pth'))
     toc1 = time.perf_counter()
     tic2 = time.perf_counter()
     y_pred_test, y_test = test(device, net, test_loader)
@@ -272,7 +275,8 @@ if __name__ == '__main__':
     classification = str(classification)
     Training_Time = toc1 - tic1
     Test_time = toc2 - tic2
-    file_name = "cls_result/classification_report.txt"
+    os.makedirs(os.path.join(base_dir, 'cls_result'), exist_ok=True)
+    file_name = os.path.join(base_dir, 'cls_result', 'classification_report.txt')
     with open(file_name, 'w') as x_file:
         x_file.write('{} Training_Time (s)'.format(Training_Time))
         x_file.write('\n')

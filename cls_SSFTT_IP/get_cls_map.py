@@ -18,43 +18,36 @@ def get_classification_map(y_pred, y):
 
     return  cls_labels
 
+import matplotlib.colors as mcolors
+
 def list_to_colormap(x_list):
     y = np.zeros((x_list.shape[0], 3))
+    # Pre-define some distinct colors (including the original 16 to preserve look if possible)
+    # But since we want it dynamic, let's use a large matplotlib colormap
+    cmap = plt.get_cmap('tab20')
+    max_val = int(np.max(x_list))
+    
+    # Alternatively, build a palette
+    palette = {0: np.array([0, 0, 0])}
+    
+    # Original Indian pines colors for 1-16
+    orig_colors = [
+        [147, 67, 46], [0, 0, 255], [255, 100, 0], [0, 255, 123],
+        [164, 75, 155], [101, 174, 255], [118, 254, 172], [60, 91, 112],
+        [255, 255, 0], [255, 255, 125], [255, 0, 255], [100, 0, 255],
+        [0, 172, 254], [0, 255, 0], [171, 175, 80], [101, 193, 60]
+    ]
+    
+    for i in range(1, max_val + 1):
+        if i <= len(orig_colors):
+            palette[i] = np.array(orig_colors[i-1]) / 255.
+        else:
+            # Fallback to matplotlib tab20 for > 16 classes
+            c = cmap((i - len(orig_colors) - 1) % 20)
+            palette[i] = np.array(c[:3])
+
     for index, item in enumerate(x_list):
-        if item == 0:
-            y[index] = np.array([0, 0, 0]) / 255.
-        if item == 1:
-            y[index] = np.array([147, 67, 46]) / 255.
-        if item == 2:
-            y[index] = np.array([0, 0, 255]) / 255.
-        if item == 3:
-            y[index] = np.array([255, 100, 0]) / 255.
-        if item == 4:
-            y[index] = np.array([0, 255, 123]) / 255.
-        if item == 5:
-            y[index] = np.array([164, 75, 155]) / 255.
-        if item == 6:
-            y[index] = np.array([101, 174, 255]) / 255.
-        if item == 7:
-            y[index] = np.array([118, 254, 172]) / 255.
-        if item == 8:
-            y[index] = np.array([60, 91, 112]) / 255.
-        if item == 9:
-            y[index] = np.array([255, 255, 0]) / 255.
-        if item == 10:
-            y[index] = np.array([255, 255, 125]) / 255.
-        if item == 11:
-            y[index] = np.array([255, 0, 255]) / 255.
-        if item == 12:
-            y[index] = np.array([100, 0, 255]) / 255.
-        if item == 13:
-            y[index] = np.array([0, 172, 254]) / 255.
-        if item == 14:
-            y[index] = np.array([0, 255, 0]) / 255.
-        if item == 15:
-            y[index] = np.array([171, 175, 80]) / 255.
-        if item == 16:
-            y[index] = np.array([101, 193, 60]) / 255.
+        y[index] = palette.get(int(item), np.array([0, 0, 0]))
 
     return y
 
@@ -93,7 +86,7 @@ def test(device, net, test_loader):
 
     return y_pred_test, y_test
 
-def get_cls_map(net, device, all_data_loader, y):
+def get_cls_map(net, device, all_data_loader, y, dataset_name='IP'):
 
     y_pred, y_new = test(device, net, all_data_loader)
     cls_labels = get_classification_map(y_pred, y)
@@ -105,10 +98,14 @@ def get_cls_map(net, device, all_data_loader, y):
 
     y_re = np.reshape(y_list, (y.shape[0], y.shape[1], 3))
     gt_re = np.reshape(y_gt, (y.shape[0], y.shape[1], 3))
+    import os
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    out_dir = os.path.join(base_dir, 'classification_maps')
+    os.makedirs(out_dir, exist_ok=True)
     classification_map(y_re, y, 300,
-                       'classification_maps/' + 'IP_predictions.eps')
+                       os.path.join(out_dir, f'{dataset_name}_predictions.eps'))
     classification_map(y_re, y, 300,
-                       'classification_maps/' + 'IP_predictions.png')
+                       os.path.join(out_dir, f'{dataset_name}_predictions.png'))
     classification_map(gt_re, y, 300,
-                       'classification_maps/' + 'IP_gt.png')
+                       os.path.join(out_dir, f'{dataset_name}_gt.png'))
     print('------Get classification maps successful-------')

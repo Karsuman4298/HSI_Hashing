@@ -1,0 +1,9 @@
+# Ignore large dataset files
+*.mat
+cls_SSFTT_IP/houston13_alreadypatched_dataset/
+cls_SSFTT_IP/houston13_our_dataset/
+output/*.pth
+
+# OS generated files
+.DS_Store
+*.DS_Store
