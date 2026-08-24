@@ -983,6 +983,10 @@ def parse_args():
         "--output_dir", type=str,
         default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output"),
     )
+    p.add_argument(
+        "--run_name", type=str, default=None,
+        help="Optional name used to keep this run's weights and report separate",
+    )
 
     return p.parse_args()
 
@@ -1029,8 +1033,12 @@ if __name__ == "__main__":
 
     # ── Save weights ──────────────────────────────────────────
     os.makedirs(args.output_dir, exist_ok=True)
+    run_name = args.run_name or (
+        f"{args.model}_{args.dataset}_{args.loss_type}_"
+        f"pca{args.pca}_patch{args.patch}_bits{args.hash_bit_length}"
+    )
     weight_path = os.path.join(
-        args.output_dir, f"SSFTT_{args.dataset}_params.pth",
+        args.output_dir, f"{run_name}_params.pth",
     )
     torch.save(net.state_dict(), weight_path)
     print(f"Saved weights → {weight_path}")
@@ -1047,6 +1055,8 @@ if __name__ == "__main__":
         query_labels = query_loader.dataset.y.to(device)
         db_labels = db_loader.dataset.y.to(device)
         mAP = calculate_mAP(query_codes, query_labels, db_codes, db_labels)
+        mAP_bin = mAP
+        mAP_cont = float("nan")
     else:
         mAP_bin = evaluate_retrieval(device, net, query_loader, db_loader, inject_noise=args.random_noise_eval, continuous=False)
         mAP_cont = evaluate_retrieval(device, net, query_loader, db_loader, inject_noise=args.random_noise_eval, continuous=True)
@@ -1061,10 +1071,12 @@ if __name__ == "__main__":
 
     # ── Write results to file ─────────────────────────────────
     result_path = os.path.join(
-        args.output_dir, f"retrieval_report_{args.dataset}.txt",
+        args.output_dir, f"{run_name}_retrieval_report.txt",
     )
     with open(result_path, "w") as f:
         f.write(f"Dataset       : {args.dataset}\n")
+        f.write(f"Model         : {args.model}\n")
+        f.write(f"Run name      : {run_name}\n")
         f.write(f"PCA components: {args.pca}\n")
         f.write(f"Patch size    : {args.patch}\n")
         f.write(f"Query ratio   : {args.query_ratio}\n")

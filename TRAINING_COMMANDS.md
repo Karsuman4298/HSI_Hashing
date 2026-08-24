@@ -46,3 +46,38 @@ PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
 * `--pca`: Change the number of channels (`30`, `48`, `144`). Set to `144` or `0` to completely bypass PCA compression.
 * `--epochs`: Change the number of training loops (default `100`).
 * `--num_tokens`: Change the number of learned tokens for SSFTT compression (default `4`).
+
+
+
+"""
+# 1. CSQ (Central Similarity Quantization)
+PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
+  --dataset houston2013 --prepatched_dir cls_SSFTT_IP/houston13_alreadypatched_dataset \
+  --hash_bit_length 64 --epochs 100 --pca 30 --loss_type csq
+
+# 2. DPN (Deep Pairwise Hashing)
+PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
+  --dataset houston2013 --prepatched_dir cls_SSFTT_IP/houston13_alreadypatched_dataset \
+  --hash_bit_length 64 --epochs 100 --pca 30 --loss_type dpn
+
+# 3. DSH (Deep Supervised Hashing)
+PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
+  --dataset houston2013 --prepatched_dir cls_SSFTT_IP/houston13_alreadypatched_dataset \
+  --hash_bit_length 64 --epochs 100 --pca 30 --loss_type dsh
+
+# 4. GreedyHash
+PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
+  --dataset houston2013 --prepatched_dir cls_SSFTT_IP/houston13_alreadypatched_dataset \
+  --hash_bit_length 64 --epochs 100 --pca 30 --loss_type greedyhash
+
+# 5. HashNet
+PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
+  --dataset houston2013 --prepatched_dir cls_SSFTT_IP/houston13_alreadypatched_dataset \
+  --hash_bit_length 64 --epochs 100 --pca 30 --loss_type hashnet
+
+# 6. IDHN (Improved Deep Hashing Network)
+PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
+  --dataset houston2013 --prepatched_dir cls_SSFTT_IP/houston13_alreadypatched_dataset \
+  --hash_bit_length 64 --epochs 100 --pca 30 --loss_type idhn
+
+"""

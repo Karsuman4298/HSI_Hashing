@@ -3,10 +3,10 @@ PCA components: 30
 Patch size    : 11
 Query ratio   : 0.1
 Hash bits     : 16
-Loss type     : orthohash
+Loss type     : dhnn
 Epochs        : 100
 LR            : 0.001
 ----------------------------------------
-Training time : 209.56 s
-Eval time     : 4.88 s
-mAP (%)       : 82.85
+Training time : 193.89 s
+Eval time     : 4.51 s
+mAP (%)       : 78.62
