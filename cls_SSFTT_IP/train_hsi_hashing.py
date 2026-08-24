@@ -257,9 +257,13 @@ def load_single_mat(file_path, preferred_key=None, is_label=False):
                         data_keys = [k for k in valid_keys if 'gt' not in k.lower() and 'label' not in k.lower()]
                         data = np.array(f[data_keys[0]] if data_keys else f[valid_keys[0]])
                 
-                # MATLAB v7.3 saves arrays in reverse dimension order (C-order vs Fortran-order)
-                # Transposing (.T) restores the original (Height, Width, Bands) shape
-                data = data.T
+                # MATLAB v7.3 saves arrays in reverse dimension order.
+                # However, if the file was generated natively in Python (h5py), it might already be correct.
+                # We check the shape: if the first dimension is small (e.g. C) and the last is large (e.g. N), we transpose.
+                if len(data.shape) == 4 and data.shape[0] < data.shape[-1]:
+                    data = data.T
+                elif len(data.shape) == 3 and data.shape[0] < data.shape[-1]:
+                    data = data.T
                 return data
         except Exception:
             # 3. Fallback to numpy load (in case it's actually an .npy file renamed to .mat)
