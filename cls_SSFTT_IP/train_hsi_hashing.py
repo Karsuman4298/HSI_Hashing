@@ -153,6 +153,15 @@ DATASETS = {
         ],
     },
 
+    # ── Nili Fossae ──────────────────────────────────────────
+    "nilifossae": {
+        "data_file":  "NiliFossae.mat",
+        "data_key":   "NiliFossae",
+        "label_file": "NiliFossae_gt.mat",
+        "label_key":  "NiliFossae_gt",
+        "class_names": [f"Class {i+1}" for i in range(9)]
+    },
+
     # ── Kennedy Space Center ──────────────────────────────────
     "ksc": {
         "data_file":  "KSC.mat",

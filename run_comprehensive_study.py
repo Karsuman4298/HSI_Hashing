@@ -8,7 +8,7 @@ import pandas as pd
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Comprehensive Ablation Study Orchestrator")
-    parser.add_argument("--datasets", nargs='+', default=["houston2013"])
+    parser.add_argument("--datasets", nargs='+', default=["houston2013", "trento", "houston2018", "nilifossae"])
     parser.add_argument("--models", nargs='+', default=["ssftt", "mamba", "moe_mamba"])
     parser.add_argument("--losses", nargs='+', default=["csq", "dpn", "dsh", "greedyhash", "hashnet", "idhn", "orthohash", "dspch", "dhnn"])
     parser.add_argument("--bits", nargs='+', type=int, default=[16, 32, 64])
@@ -24,7 +24,8 @@ def run_experiment(dataset, model, loss, bit, epochs, patch, pca, output_dir):
         "houston2013": "../houston13",
         "houston2018": "../Houston18",
         "trento": "../Trento",
-        "indian_pines": "cls_SSFTT_IP/ip_alreadypatched_dataset"
+        "indian_pines": "cls_SSFTT_IP/ip_alreadypatched_dataset",
+        "nilifossae": "cls_SSFTT_IP/NiliFossae_dataset"
     }
     
     cmd = [
