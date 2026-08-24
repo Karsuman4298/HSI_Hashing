@@ -362,20 +362,10 @@ def create_data_loader(args):
             te_file = "HSI_Te.mat"
             
         print(f"\n... Loading Pre-Patched Disjoint Split from {args.prepatched_dir} ({tr_file}) ...")
-        X_train_mat = sio.loadmat(os.path.join(args.prepatched_dir, tr_file))
-        X_test_mat  = sio.loadmat(os.path.join(args.prepatched_dir, te_file))
-        y_train_mat = sio.loadmat(os.path.join(args.prepatched_dir, "TrLabel.mat"))
-        y_test_mat  = sio.loadmat(os.path.join(args.prepatched_dir, "TeLabel.mat"))
-        
-        xt_key = [k for k in X_train_mat.keys() if not k.startswith('_')][0]
-        xte_key = [k for k in X_test_mat.keys() if not k.startswith('_')][0]
-        yt_key = [k for k in y_train_mat.keys() if not k.startswith('_')][0]
-        yte_key = [k for k in y_test_mat.keys() if not k.startswith('_')][0]
-        
-        Xtrain = X_train_mat[xt_key]
-        Xtest = X_test_mat[xte_key]
-        ytrain = y_train_mat[yt_key].squeeze()
-        ytest = y_test_mat[yte_key].squeeze()
+        Xtrain = load_single_mat(os.path.join(args.prepatched_dir, tr_file))
+        Xtest  = load_single_mat(os.path.join(args.prepatched_dir, te_file))
+        ytrain = load_single_mat(os.path.join(args.prepatched_dir, "TrLabel.mat")).squeeze()
+        ytest  = load_single_mat(os.path.join(args.prepatched_dir, "TeLabel.mat")).squeeze()
         
         # ── Dynamic PCA for Pre-Patched Data ─────────────────────
         if args.pca > 0 and args.pca < Xtrain.shape[3]:
