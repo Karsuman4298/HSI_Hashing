@@ -21,10 +21,16 @@ def parse_args():
 def run_experiment(dataset, model, loss, bit, epochs, patch, pca, output_dir):
     # Known prepatched directories. Add more if your structure changes.
     prepatched_map = {
-        "houston2013": "cls_SSFTT_IP/houston13_alreadypatched_dataset",
-        "trento": "cls_SSFTT_IP/trento_alreadypatched_dataset",
+        "houston2013": "houston13",
+        "trento": "trento",
         "indian_pines": "cls_SSFTT_IP/ip_alreadypatched_dataset"
     }
+    
+    # Fallback to local directory structure if the server ones don't exist
+    if dataset == "houston2013" and not os.path.exists("houston13"):
+        prepatched_map["houston2013"] = "cls_SSFTT_IP/houston13_alreadypatched_dataset"
+    if dataset == "trento" and not os.path.exists("trento"):
+        prepatched_map["trento"] = "cls_SSFTT_IP/trento_alreadypatched_dataset"
     
     cmd = [
         "python3", "cls_SSFTT_IP/train_hsi_hashing.py",
@@ -87,13 +93,39 @@ def run_experiment(dataset, model, loss, bit, epochs, patch, pca, output_dir):
     return result
 
 def plot_pr_grids(results_df, output_dir):
-    # Group by dataset, loss, bits
-    # Plot SSFTT, Mamba, MoE-Mamba on same graph
+    # Professional Publication-Ready Aesthetics
+    plt.rcParams.update({
+        'font.size': 22,
+        'axes.labelsize': 24,
+        'axes.titlesize': 26,
+        'xtick.labelsize': 20,
+        'ytick.labelsize': 20,
+        'legend.fontsize': 20,
+        'figure.figsize': (10, 8),
+        'axes.linewidth': 2.0,
+        'lines.linewidth': 3.5,
+        'lines.markersize': 12
+    })
+    
+    # Distinct, attractive color palette
+    model_colors = {
+        "ssftt": "#1f77b4",     # Deep blue
+        "mamba": "#ff7f0e",     # Vibrant orange
+        "moe_mamba": "#2ca02c", # Rich green
+        "cnn": "#d62728"        # Strong red (fallback)
+    }
+    
+    # Professional display names for the legend
+    model_display_names = {
+        "ssftt": "SSFTT",
+        "mamba": "Mamba",
+        "moe_mamba": "MoE-Mamba"
+    }
+    
     groups = results_df.groupby(["Dataset", "Loss", "Bits"])
     
     for (dataset, loss, bits), group in groups:
-        plt.rcParams.update({'font.size': 14})
-        plt.figure(figsize=(8, 6))
+        plt.figure()
         
         valid_plots = 0
         markers = ['D', 'o', 's', '^', 'v']
@@ -104,20 +136,32 @@ def plot_pr_grids(results_df, output_dir):
             if npz and os.path.exists(npz):
                 data = np.load(npz)
                 marker = markers[i % len(markers)]
-                plt.plot(data['R'], data['P'], marker=marker, label=model, linewidth=2, markersize=8)
+                color = model_colors.get(model, "#9467bd") # Fallback to purple
+                display_name = model_display_names.get(model, model.upper())
+                
+                plt.plot(data['R'], data['P'], marker=marker, color=color, label=display_name)
                 valid_plots += 1
                 
         if valid_plots > 0:
-            plt.grid(True)
-            plt.xlabel('Recall')
-            plt.ylabel('Precision')
-            plt.title(f"{dataset} | {loss} | {bits} bits")
-            plt.legend()
+            # Subtle dashed grid behind the lines
+            plt.grid(True, linestyle='--', alpha=0.7, linewidth=1.5, zorder=0)
             
-            out_path = os.path.join(output_dir, f"grid_{dataset}_{loss}_bits{bits}_pr.pdf")
-            plt.savefig(out_path, bbox_inches='tight')
+            plt.xlabel('Recall', fontweight='bold')
+            plt.ylabel('Precision', fontweight='bold')
+            plt.title(f"{dataset.upper()} | {loss.upper()} | {bits} Bits", pad=20)
+            
+            # Professional legend formatting
+            plt.legend(frameon=True, edgecolor='black', fancybox=False, shadow=False)
+            
+            # Tight layout removes excess white space
+            plt.tight_layout()
+            
+            out_path_pdf = os.path.join(output_dir, f"grid_{dataset}_{loss}_bits{bits}_pr.pdf")
+            out_path_png = os.path.join(output_dir, f"grid_{dataset}_{loss}_bits{bits}_pr.png")
+            plt.savefig(out_path_pdf, format='pdf', bbox_inches='tight')
+            plt.savefig(out_path_png, format='png', bbox_inches='tight', dpi=300)
             plt.close()
-            print(f"Saved combined PR grid -> {out_path}")
+            print(f"Saved publication-ready PR grid -> {out_path_pdf} and {out_path_png}")
 
 def generate_markdown_table(df, output_path):
     with open(output_path, 'w') as f:
@@ -135,9 +179,17 @@ def generate_markdown_table(df, output_path):
             f.write("| Model | " + " | ".join([f"{loss} ({b}b)" for loss in losses for b in bits]) + " | Avg Eval/Retrieval Time (s) |\n")
             f.write("|---|" + "|".join(["---" for _ in range(len(losses) * len(bits))]) + "|---|\n")
             
+            # Professional display names for the table
+            model_display_names = {
+                "ssftt": "SSFTT",
+                "mamba": "Mamba",
+                "moe_mamba": "MoE-Mamba"
+            }
+            
             models = ds_df["Model"].unique()
             for model in models:
-                row_str = f"| {model} | "
+                display_name = model_display_names.get(model, model.upper())
+                row_str = f"| {display_name} | "
                 eval_times = []
                 for loss in losses:
                     for b in bits:
