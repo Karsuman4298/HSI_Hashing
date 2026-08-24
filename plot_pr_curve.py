@@ -77,7 +77,8 @@ def plot_curves(dataset, method, bit, models, save_dir="Checkpoints_Results"):
     plt.figure(figsize=(11, 9))
     for model in pr_data:
         P, R = pr_data[model]
-        plt.plot(x_range, R, linestyle="-", marker=model2marker[model], label=model, linewidth=4, markersize=12)
+        display_name = DISPLAY_NAMES.get(model, model.upper())
+        plt.plot(x_range, R, linestyle="-", marker=model2marker[model], label=display_name, linewidth=4, markersize=12)
     plt.grid(True)
     plt.xlabel('Number of retrieved samples')
     plt.ylabel('Recall')
@@ -91,7 +92,8 @@ def plot_curves(dataset, method, bit, models, save_dir="Checkpoints_Results"):
     plt.figure(figsize=(11, 9))
     for model in pr_data:
         P, R = pr_data[model]
-        plt.plot(x_range, P, linestyle="-", marker=model2marker[model], label=model, linewidth=4, markersize=12)
+        display_name = DISPLAY_NAMES.get(model, model.upper())
+        plt.plot(x_range, P, linestyle="-", marker=model2marker[model], label=display_name, linewidth=4, markersize=12)
     plt.grid(True)
     plt.xlabel('Number of retrieved samples')
     plt.ylabel('Precision')
