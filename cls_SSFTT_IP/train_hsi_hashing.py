@@ -229,7 +229,13 @@ def load_single_mat(file_path, preferred_key=None):
                 return data
         except Exception:
             # 3. Fallback to numpy load (in case it's actually an .npy file renamed to .mat)
-            return np.load(file_path)
+            data = np.load(file_path, allow_pickle=True)
+            # If the numpy array is just a wrapper around a dictionary, extract the array
+            if data.shape == () and isinstance(data.item(), dict):
+                mat_dict = data.item()
+                key = _find_mat_key(mat_dict, preferred_key)
+                return np.array(mat_dict[key])
+            return data
 
 
 def loadData(data_dir, ds_cfg):
