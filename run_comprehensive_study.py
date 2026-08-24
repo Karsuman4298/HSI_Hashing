@@ -21,16 +21,10 @@ def parse_args():
 def run_experiment(dataset, model, loss, bit, epochs, patch, pca, output_dir):
     # Known prepatched directories. Add more if your structure changes.
     prepatched_map = {
-        "houston2013": "houston13",
-        "trento": "trento",
+        "houston2013": "../houston13",
+        "trento": "../Trento",
         "indian_pines": "cls_SSFTT_IP/ip_alreadypatched_dataset"
     }
-    
-    # Fallback to local directory structure if the server ones don't exist
-    if dataset == "houston2013" and not os.path.exists("houston13"):
-        prepatched_map["houston2013"] = "cls_SSFTT_IP/houston13_alreadypatched_dataset"
-    if dataset == "trento" and not os.path.exists("trento"):
-        prepatched_map["trento"] = "cls_SSFTT_IP/trento_alreadypatched_dataset"
     
     cmd = [
         "python3", "cls_SSFTT_IP/train_hsi_hashing.py",
@@ -44,7 +38,7 @@ def run_experiment(dataset, model, loss, bit, epochs, patch, pca, output_dir):
         "--output_dir", output_dir
     ]
     
-    if dataset in prepatched_map and os.path.exists(prepatched_map[dataset]):
+    if dataset in prepatched_map:
         cmd.extend(["--prepatched_dir", prepatched_map[dataset]])
         
     print(f"\n[{'='*50}]")
