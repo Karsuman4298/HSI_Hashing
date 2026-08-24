@@ -747,6 +747,9 @@ def train(train_loader, db_loader, query_loader, num_classes, args):
     elif args.model == "mamba":
         from MambaHashNet import MambaHashNet
         net = MambaHashNet(in_channels=actual_pca_channels, hash_bit_length=args.hash_bit_length, mamba_type='both').to(device)
+    elif args.model == "moe_mamba":
+        from MoEMambaHashNet import MoEMambaHashNet
+        net = MoEMambaHashNet(in_channels=actual_pca_channels, hash_bit_length=args.hash_bit_length).to(device)
     else:
         raise ValueError("Unknown model")
 
@@ -912,6 +915,31 @@ def calculate_mAP(query_codes, query_labels, db_codes, db_labels):
     mAP = sum(APs) / len(APs)
     return mAP
 
+def calculate_pr_curve_vectorized(query_codes, query_labels, db_codes, db_labels, draw_range):
+    similarity = torch.matmul(query_codes, db_codes.t())
+    _, sorted_indices = torch.sort(similarity, descending=True, dim=1)
+    sorted_db_labels = db_labels[sorted_indices]
+    query_labels_expanded = query_labels.unsqueeze(1).expand(-1, sorted_db_labels.size(1))
+    correct_matches = (sorted_db_labels == query_labels_expanded).float()
+    total_relevant = correct_matches.sum(dim=1)
+    
+    P_list = []
+    R_list = []
+    for k in draw_range:
+        if k > db_codes.size(0):
+            break
+        retrieved_matches = correct_matches[:, :k].sum(dim=1)
+        valid_queries = total_relevant > 0
+        if valid_queries.sum() == 0:
+            P_list.append(0.0)
+            R_list.append(0.0)
+            continue
+        p = retrieved_matches[valid_queries] / k
+        r = retrieved_matches[valid_queries] / total_relevant[valid_queries]
+        P_list.append(p.mean().item())
+        R_list.append(r.mean().item())
+    return P_list, R_list
+
 def evaluate_retrieval(device, net, query_loader, db_loader, inject_noise=False, continuous=False):
     print(f"\nGenerating hash codes for database (noise={inject_noise}, continuous={continuous})...")
     db_codes, db_labels = generate_hash_codes(net, device, db_loader, inject_noise, continuous)
@@ -920,7 +948,7 @@ def evaluate_retrieval(device, net, query_loader, db_loader, inject_noise=False,
     
     print("Calculating mAP...")
     mAP = calculate_mAP(query_codes, query_labels, db_codes, db_labels)
-    return mAP
+    return mAP, query_codes, query_labels, db_codes, db_labels
 
 
 # ──────────────────────────────────────────────────────────────
@@ -969,7 +997,7 @@ def parse_args():
     p.add_argument("--shuffle_train_labels", action="store_true", help="Shuffle training labels to verify baseline")
     p.add_argument("--seed", type=int, default=345, help="Random seed for reproducibility")
     p.add_argument("--prepatched_dir", type=str, default=None, help="Path to already patched dataset")
-    p.add_argument("--model", type=str, default="ssftt", choices=["ssftt", "cnn", "mamba"], help="Architecture to run")
+    p.add_argument("--model", type=str, default="ssftt", choices=["ssftt", "cnn", "mamba", "moe_mamba"], help="Architecture to run")
     p.add_argument("--split_type", type=str, default="random", choices=["random", "disjoint"], help="How to split train/test")
     p.add_argument("--use_supcon", action="store_true", help="Use Supervised Contrastive Loss")
     p.add_argument("--supcon_weight", type=float, default=0.1, help="Weight for SupCon loss")
@@ -1058,8 +1086,8 @@ if __name__ == "__main__":
         mAP_bin = mAP
         mAP_cont = float("nan")
     else:
-        mAP_bin = evaluate_retrieval(device, net, query_loader, db_loader, inject_noise=args.random_noise_eval, continuous=False)
-        mAP_cont = evaluate_retrieval(device, net, query_loader, db_loader, inject_noise=args.random_noise_eval, continuous=True)
+        mAP_bin, q_codes_b, q_labels_b, db_codes_b, db_labels_b = evaluate_retrieval(device, net, query_loader, db_loader, inject_noise=args.random_noise_eval, continuous=False)
+        mAP_cont, _, _, _, _ = evaluate_retrieval(device, net, query_loader, db_loader, inject_noise=args.random_noise_eval, continuous=True)
         mAP = mAP_bin  # just to keep downstream variables happy
         
     test_time = time.perf_counter() - tic
@@ -1089,3 +1117,28 @@ if __name__ == "__main__":
         f.write(f"Eval time     : {test_time:.2f} s\n")
         f.write(f"mAP (%)       : {mAP * 100:.2f}\n")
     print(f"Report saved → {result_path}")
+
+    # ── PR Curve Evaluation ───────────────────────────────────
+    if not args.random_hash_eval:
+        try:
+            from utils.tools import draw_range
+        except ImportError:
+            draw_range = [1, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000]
+
+        print("Calculating Precision-Recall Curve...")
+        P_list, R_list = calculate_pr_curve_vectorized(q_codes_b, q_labels_b, db_codes_b, db_labels_b, draw_range)
+        
+        plt.rcParams.update({'font.size': 20})
+        plt.figure(figsize=(11, 9))
+        plt.plot(R_list, P_list, linestyle="-", marker="D", label=args.model, linewidth=4, markersize=12)
+        plt.grid(True)
+        plt.xlabel('Recall')
+        plt.ylabel('Precision')
+        plt.legend()
+        pr_path = os.path.join(args.output_dir, f"{run_name}_pr.pdf")
+        npz_path = os.path.join(args.output_dir, f"{run_name}_pr.npz")
+        np.savez(npz_path, P=P_list, R=R_list)
+        plt.savefig(pr_path, bbox_inches='tight')
+        print(f"PR curve plot saved → {pr_path}")
+        print(f"PR curve data saved → {npz_path}")
+        plt.close()

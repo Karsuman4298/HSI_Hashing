@@ -556,8 +556,9 @@ if __name__ == "__main__":
 
     # ── Save weights ──────────────────────────────────────────
     os.makedirs(args.output_dir, exist_ok=True)
+    config_str = f"{args.dataset}_pca{args.pca}_patch{args.patch}_tr{args.test_ratio}_bs{args.batch_size}_ep{args.epochs}_lr{args.lr}"
     weight_path = os.path.join(
-        args.output_dir, f"SSFTT_{args.dataset}_params.pth",
+        args.output_dir, f"SSFTT_{config_str}_params.pth",
     )
     torch.save(net.state_dict(), weight_path)
     print(f"Saved weights → {weight_path}")
@@ -580,7 +581,7 @@ if __name__ == "__main__":
 
     # ── Write results to file ─────────────────────────────────
     result_path = os.path.join(
-        args.output_dir, f"classification_report_{args.dataset}.txt",
+        args.output_dir, f"classification_report_{config_str}.txt",
     )
     with open(result_path, "w") as f:
         f.write(f"Dataset       : {args.dataset}\n")
@@ -602,9 +603,9 @@ if __name__ == "__main__":
     print(f"Report saved → {result_path}")
 
     # ── Confusion Matrix Heatmap (Seaborn) ────────────────────
-    cm_path = os.path.join(args.output_dir, f"confusion_matrix_{args.dataset}.png")
+    cm_path = os.path.join(args.output_dir, f"confusion_matrix_{config_str}.png")
     plot_confusion_matrix(cm, y_true, y_pred, ds_cfg["class_names"], cm_path)
     print(f"Confusion matrix saved → {cm_path}")
 
     # ── Classification map ────────────────────────────────────
-    get_cls_map.get_cls_map(net, device, all_loader, y_all, dataset_name=args.dataset)
+    get_cls_map.get_cls_map(net, device, all_loader, y_all, dataset_name=config_str)

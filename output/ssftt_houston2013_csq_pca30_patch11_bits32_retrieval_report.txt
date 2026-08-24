@@ -1,0 +1,14 @@
+Dataset       : houston2013
+Model         : ssftt
+Run name      : ssftt_houston2013_csq_pca30_patch11_bits32
+PCA components: 30
+Patch size    : 11
+Query ratio   : 0.1
+Hash bits     : 32
+Loss type     : csq
+Epochs        : 30
+LR            : 0.001
+----------------------------------------
+Training time : 77.55 s
+Eval time     : 5.50 s
+mAP (%)       : 77.54
