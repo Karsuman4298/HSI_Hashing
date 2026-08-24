@@ -22,6 +22,7 @@ def run_experiment(dataset, model, loss, bit, epochs, patch, pca, output_dir):
     # Known prepatched directories. Add more if your structure changes.
     prepatched_map = {
         "houston2013": "../houston13",
+        "houston2018": "../Houston18",
         "trento": "../Trento",
         "indian_pines": "cls_SSFTT_IP/ip_alreadypatched_dataset"
     }
