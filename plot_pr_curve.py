@@ -9,6 +9,13 @@ def plot_curves(dataset, method, bit, models, save_dir="Checkpoints_Results"):
     markers = "DdsPvo*xH1234h"
     model2marker = {model: markers[i % len(markers)] for i, model in enumerate(models)}
     
+    # Beautiful display names for the legend
+    DISPLAY_NAMES = {
+        "ssftt": "SSFTT",
+        "mamba": "Mamba",
+        "moe_mamba": "MoE-Mamba"
+    }
+    
     # Store parsed P and R data for each model
     pr_data = {}
     
@@ -50,7 +57,8 @@ def plot_curves(dataset, method, bit, models, save_dir="Checkpoints_Results"):
     plt.figure(figsize=(11, 9))
     for model in pr_data:
         P, R = pr_data[model]
-        plt.plot(R, P, linestyle="-", marker=model2marker[model], label=model, linewidth=4, markersize=12)
+        display_name = DISPLAY_NAMES.get(model, model.upper())
+        plt.plot(R, P, linestyle="-", marker=model2marker[model], label=display_name, linewidth=4, markersize=12)
     plt.grid(True)
     plt.xlabel('Recall')
     plt.ylabel('Precision')
