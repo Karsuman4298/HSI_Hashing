@@ -211,7 +211,7 @@ def _find_mat_key(mat_dict, preferred_key):
     raise KeyError("No usable array found in .mat file.")
 
 
-def load_single_mat(file_path, preferred_key=None):
+def load_single_mat(file_path, preferred_key=None, is_label=False):
     """
     Robust reader: Automatically detects whether the file is standard 
     MATLAB format or MATLAB v7.3 (HDF5).
@@ -219,7 +219,11 @@ def load_single_mat(file_path, preferred_key=None):
     try:
         # 1. Try standard SciPy loadmat (MATLAB <= v7)
         mat_dict = sio.loadmat(file_path)
-        key = _find_mat_key(mat_dict, preferred_key)
+        if is_label:
+            valid_keys = [k for k in mat_dict.keys() if not k.startswith('__') and ('gt' in k.lower() or 'label' in k.lower())]
+            key = valid_keys[0] if valid_keys else _find_mat_key(mat_dict, preferred_key)
+        else:
+            key = _find_mat_key(mat_dict, preferred_key)
         return np.array(mat_dict[key])
     except (NotImplementedError, Exception):
         # 2. Fallback to h5py for MATLAB v7.3 files
@@ -228,11 +232,21 @@ def load_single_mat(file_path, preferred_key=None):
                 if preferred_key and preferred_key in f:
                     data = np.array(f[preferred_key])
                 else:
-                    # Find the first key that isn't metadata
                     valid_keys = [k for k in f.keys() if not k.startswith('#')]
                     if not valid_keys:
                         raise KeyError(f"No valid dataset found in {file_path}")
-                    data = np.array(f[valid_keys[0]])
+                        
+                    if is_label:
+                        label_keys = [k for k in valid_keys if 'gt' in k.lower() or 'label' in k.lower()]
+                        if label_keys:
+                            data = np.array(f[label_keys[0]])
+                        else:
+                            # Usually the smallest array is the label
+                            data = np.array(f[valid_keys[1]] if len(valid_keys) > 1 else f[valid_keys[0]])
+                    else:
+                        # Find the first key that isn't metadata (usually the large data array)
+                        data_keys = [k for k in valid_keys if 'gt' not in k.lower() and 'label' not in k.lower()]
+                        data = np.array(f[data_keys[0]] if data_keys else f[valid_keys[0]])
                 
                 # MATLAB v7.3 saves arrays in reverse dimension order (C-order vs Fortran-order)
                 # Transposing (.T) restores the original (Height, Width, Bands) shape
@@ -385,8 +399,23 @@ def create_data_loader(args):
         print(f"\n... Loading Pre-Patched Disjoint Split from {args.prepatched_dir} ({tr_file}) ...")
         Xtrain = load_single_mat(os.path.join(args.prepatched_dir, tr_file))
         Xtest  = load_single_mat(os.path.join(args.prepatched_dir, te_file))
-        ytrain = load_single_mat(os.path.join(args.prepatched_dir, "TrLabel.mat")).squeeze()
-        ytest  = load_single_mat(os.path.join(args.prepatched_dir, "TeLabel.mat")).squeeze()
+        
+        tr_label_path = os.path.join(args.prepatched_dir, "TrLabel.mat")
+        te_label_path = os.path.join(args.prepatched_dir, "TeLabel.mat")
+        
+        # Fallback logic: If separate label files don't exist, try to extract them from the main data file 
+        # (e.g. if 'Houston18_Tr_gt' is bundled inside 'Houston18_Tr.mat')
+        if os.path.exists(tr_label_path):
+            ytrain = load_single_mat(tr_label_path).squeeze()
+        else:
+            print(f"Warning: {tr_label_path} not found. Attempting to extract bundled labels from {tr_file}...")
+            ytrain = load_single_mat(os.path.join(args.prepatched_dir, tr_file), preferred_key=None, is_label=True).squeeze()
+            
+        if os.path.exists(te_label_path):
+            ytest = load_single_mat(te_label_path).squeeze()
+        else:
+            print(f"Warning: {te_label_path} not found. Attempting to extract bundled labels from {te_file}...")
+            ytest = load_single_mat(os.path.join(args.prepatched_dir, te_file), preferred_key=None, is_label=True).squeeze()
         
         # ── Dynamic PCA for Pre-Patched Data ─────────────────────
         if args.pca > 0 and args.pca < Xtrain.shape[3]:
