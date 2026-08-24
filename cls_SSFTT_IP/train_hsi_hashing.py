@@ -212,20 +212,24 @@ def load_single_mat(file_path, preferred_key=None):
         return np.array(mat_dict[key])
     except (NotImplementedError, Exception):
         # 2. Fallback to h5py for MATLAB v7.3 files
-        with h5py.File(file_path, 'r') as f:
-            if preferred_key and preferred_key in f:
-                data = np.array(f[preferred_key])
-            else:
-                # Find the first key that isn't metadata
-                valid_keys = [k for k in f.keys() if not k.startswith('#')]
-                if not valid_keys:
-                    raise KeyError(f"No valid dataset found in {file_path}")
-                data = np.array(f[valid_keys[0]])
-            
-            # MATLAB v7.3 saves arrays in reverse dimension order (C-order vs Fortran-order)
-            # Transposing (.T) restores the original (Height, Width, Bands) shape
-            data = data.T
-            return data
+        try:
+            with h5py.File(file_path, 'r') as f:
+                if preferred_key and preferred_key in f:
+                    data = np.array(f[preferred_key])
+                else:
+                    # Find the first key that isn't metadata
+                    valid_keys = [k for k in f.keys() if not k.startswith('#')]
+                    if not valid_keys:
+                        raise KeyError(f"No valid dataset found in {file_path}")
+                    data = np.array(f[valid_keys[0]])
+                
+                # MATLAB v7.3 saves arrays in reverse dimension order (C-order vs Fortran-order)
+                # Transposing (.T) restores the original (Height, Width, Bands) shape
+                data = data.T
+                return data
+        except Exception:
+            # 3. Fallback to numpy load (in case it's actually an .npy file renamed to .mat)
+            return np.load(file_path)
 
 
 def loadData(data_dir, ds_cfg):
