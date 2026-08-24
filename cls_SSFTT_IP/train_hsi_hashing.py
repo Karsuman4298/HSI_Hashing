@@ -125,6 +125,17 @@ DATASETS = {
         ],
     },
 
+    # ── Trento ───────────────────────────────────────────────
+    "trento": {
+        "data_file":  "trento_data.mat",
+        "data_key":   "data",
+        "label_file": "trento_gt.mat",
+        "label_key":  "gt",
+        "class_names": [
+            "Apples", "Buildings", "Ground", "Woods", "Vineyard", "Roads"
+        ],
+    },
+
     # ── Houston 2018 (GRSS DFC) ──────────────────────────────
     "houston2018": {
         "data_file":  "Houston2018.mat",
