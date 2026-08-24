@@ -41,7 +41,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 from SSFTTHashNet import SSFTTHashNet, CNNBaselineHashNet
-from MambaHashNet import MambaHashNet
 from hash_losses import CSQLoss, DPNLoss, SupConLoss, DSHLoss, GreedyHashLoss, HashNetLoss, IDHNLoss, OrthoHashLoss, DSPCHLoss, BatchDHNNLoss
 import get_cls_map  # existing visualization module
 from get_cls_map import get_classification_map, list_to_colormap, classification_map
@@ -746,6 +745,7 @@ def train(train_loader, db_loader, query_loader, num_classes, args):
     elif args.model == "cnn":
         net = CNNBaselineHashNet(hash_bit_length=args.hash_bit_length).to(device)
     elif args.model == "mamba":
+        from MambaHashNet import MambaHashNet
         net = MambaHashNet(in_channels=actual_pca_channels, hash_bit_length=args.hash_bit_length, mamba_type='both').to(device)
     else:
         raise ValueError("Unknown model")
