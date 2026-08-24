@@ -4,9 +4,27 @@ import matplotlib.pyplot as plt
 from utils.tools import draw_range
 
 def plot_curves(dataset, method, bit, models, save_dir="Checkpoints_Results"):
-    plt.rcParams.update({'font.size': 20})
+    # --- High-End Academic Plot Aesthetics ---
+    plt.rcParams.update({
+        'font.size': 18,
+        'font.family': 'serif',
+        'axes.labelsize': 22,
+        'axes.titlesize': 24,
+        'xtick.labelsize': 18,
+        'ytick.labelsize': 18,
+        'legend.fontsize': 18,
+        'legend.frameon': True,
+        'legend.edgecolor': 'black',
+        'axes.linewidth': 2.0,
+        'grid.alpha': 0.5,
+        'grid.linestyle': '--'
+    })
     
-    markers = "DdsPvo*xH1234h"
+    # Elegant vibrant colors and distinct markers
+    colors = ['#d62728', '#1f77b4', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b', '#e377c2']
+    markers = ['o', 's', '^', 'D', 'v', 'p', '*']
+    
+    model2color = {model: colors[i % len(colors)] for i, model in enumerate(models)}
     model2marker = {model: markers[i % len(markers)] for i, model in enumerate(models)}
     
     # Beautiful display names for the legend
@@ -54,17 +72,29 @@ def plot_curves(dataset, method, bit, models, save_dir="Checkpoints_Results"):
         return
 
     # 1. Precision-Recall Curve
-    plt.figure(figsize=(11, 9))
+    fig, ax = plt.subplots(figsize=(10, 8))
     for model in pr_data:
         P, R = pr_data[model]
         display_name = DISPLAY_NAMES.get(model, model.upper())
-        plt.plot(R, P, linestyle="-", marker=model2marker[model], label=display_name, linewidth=4, markersize=12)
-    plt.grid(True)
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.legend()
+        ax.plot(R, P, linestyle="-", color=model2color[model], marker=model2marker[model], 
+                label=display_name, linewidth=3.5, markersize=12, markeredgecolor='white', markeredgewidth=1.5, alpha=0.9)
+    ax.grid(True, linestyle='--', alpha=0.6, color='#B0BEC5')
+    ax.set_xlabel('Recall', fontweight='bold', labelpad=15)
+    ax.set_ylabel('Precision', fontweight='bold', labelpad=15)
+    
+    # Remove top and right spines for a clean look
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
+    # Enhance legend
+    legend = ax.legend(loc='lower left', shadow=True, borderpad=1)
+    legend.get_frame().set_facecolor('white')
+    legend.get_frame().set_edgecolor('#CFD8DC')
+    
     out_pr = f"{dataset}_{method}_Bit{bit}_pr.pdf"
-    plt.savefig(out_pr, bbox_inches='tight')
+    plt.tight_layout()
+    plt.savefig(out_pr, bbox_inches='tight', dpi=300)
+    plt.close(fig)
     print(f"Saved Precision-Recall Curve to {out_pr}")
     
     # Check if draw_range matches the data length
@@ -74,33 +104,53 @@ def plot_curves(dataset, method, bit, models, save_dir="Checkpoints_Results"):
     x_range = draw_range[:data_len]
     
     # 2. Recall vs Number of Retrieved Samples
-    plt.figure(figsize=(11, 9))
+    fig, ax = plt.subplots(figsize=(10, 8))
     for model in pr_data:
         P, R = pr_data[model]
         display_name = DISPLAY_NAMES.get(model, model.upper())
-        plt.plot(x_range, R, linestyle="-", marker=model2marker[model], label=display_name, linewidth=4, markersize=12)
-    plt.grid(True)
-    plt.xlabel('Number of retrieved samples')
-    plt.ylabel('Recall')
-    plt.xlim(0, max(x_range) if x_range else 1)
-    plt.legend()
+        ax.plot(x_range, R, linestyle="-", color=model2color[model], marker=model2marker[model], 
+                label=display_name, linewidth=3.5, markersize=12, markeredgecolor='white', markeredgewidth=1.5, alpha=0.9)
+    ax.grid(True, linestyle='--', alpha=0.6, color='#B0BEC5')
+    ax.set_xlabel('Number of retrieved samples', fontweight='bold', labelpad=15)
+    ax.set_ylabel('Recall', fontweight='bold', labelpad=15)
+    ax.set_xlim(0, max(x_range) if x_range else 1)
+    
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
+    legend = ax.legend(loc='lower right', shadow=True, borderpad=1)
+    legend.get_frame().set_facecolor('white')
+    legend.get_frame().set_edgecolor('#CFD8DC')
+    
     out_recall = f"{dataset}_{method}_Bit{bit}_recall.pdf"
-    plt.savefig(out_recall, bbox_inches='tight')
+    plt.tight_layout()
+    plt.savefig(out_recall, bbox_inches='tight', dpi=300)
+    plt.close(fig)
     print(f"Saved Recall Curve to {out_recall}")
     
     # 3. Precision vs Number of Retrieved Samples
-    plt.figure(figsize=(11, 9))
+    fig, ax = plt.subplots(figsize=(10, 8))
     for model in pr_data:
         P, R = pr_data[model]
         display_name = DISPLAY_NAMES.get(model, model.upper())
-        plt.plot(x_range, P, linestyle="-", marker=model2marker[model], label=display_name, linewidth=4, markersize=12)
-    plt.grid(True)
-    plt.xlabel('Number of retrieved samples')
-    plt.ylabel('Precision')
-    plt.xlim(0, max(x_range) if x_range else 1)
-    plt.legend()
+        ax.plot(x_range, P, linestyle="-", color=model2color[model], marker=model2marker[model], 
+                label=display_name, linewidth=3.5, markersize=12, markeredgecolor='white', markeredgewidth=1.5, alpha=0.9)
+    ax.grid(True, linestyle='--', alpha=0.6, color='#B0BEC5')
+    ax.set_xlabel('Number of retrieved samples', fontweight='bold', labelpad=15)
+    ax.set_ylabel('Precision', fontweight='bold', labelpad=15)
+    ax.set_xlim(0, max(x_range) if x_range else 1)
+    
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
+    legend = ax.legend(loc='lower right', shadow=True, borderpad=1)
+    legend.get_frame().set_facecolor('white')
+    legend.get_frame().set_edgecolor('#CFD8DC')
+    
     out_precision = f"{dataset}_{method}_Bit{bit}_precision.pdf"
-    plt.savefig(out_precision, bbox_inches='tight')
+    plt.tight_layout()
+    plt.savefig(out_precision, bbox_inches='tight', dpi=300)
+    plt.close(fig)
     print(f"Saved Precision Curve to {out_precision}")
     
     # Uncomment below if you want interactive plots
