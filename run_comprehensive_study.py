@@ -20,13 +20,23 @@ def parse_args():
 
 def run_experiment(dataset, model, loss, bit, epochs, patch, pca, output_dir):
     # Known prepatched directories. Add more if your structure changes.
-    prepatched_map = {
-        "houston2013": "cls_SSFTT_IP/houston13_alreadypatched_dataset",
-        "houston2018": "../Houston18",
-        "trento": "../Trento",
-        "indian_pines": "cls_SSFTT_IP/ip_alreadypatched_dataset",
-        "nilifossae": "cls_SSFTT_IP/NiliFossae_dataset"
+    prepatched_map_options = {
+        "houston2013": ["../houston13", "cls_SSFTT_IP/houston13_alreadypatched_dataset"],
+        "houston2018": ["../Houston18"],
+        "trento": ["../Trento"],
+        "indian_pines": ["cls_SSFTT_IP/ip_alreadypatched_dataset"],
+        "nilifossae": ["../NiliFossae", "cls_SSFTT_IP/NiliFossae_dataset"]
     }
+
+    prepatched_map = {}
+    for ds_name, paths in prepatched_map_options.items():
+        for p in paths:
+            if os.path.exists(p):
+                prepatched_map[ds_name] = p
+                break
+        # Fallback to the first path if none exist, so the script can still error out normally
+        if ds_name not in prepatched_map:
+            prepatched_map[ds_name] = paths[0]
     
     cmd = [
         "python3", "cls_SSFTT_IP/train_hsi_hashing.py",
