@@ -803,6 +803,15 @@ def train(train_loader, db_loader, query_loader, num_classes, args):
     elif args.model == "moe_mamba":
         from MoEMambaHashNet import MoEMambaHashNet
         net = MoEMambaHashNet(in_channels=actual_pca_channels, hash_bit_length=args.hash_bit_length).to(device)
+    elif args.model == "ssrn":
+        from SSRNHashNet import SSRNHashNet
+        net = SSRNHashNet(in_channels=1, hash_bit_length=args.hash_bit_length, pca_channels=actual_pca_channels).to(device)
+    elif args.model == "a2s2kresnet":
+        from A2S2KResNetHashNet import A2S2KResNetHashNet
+        net = A2S2KResNetHashNet(in_channels=1, hash_bit_length=args.hash_bit_length, pca_channels=actual_pca_channels).to(device)
+    elif args.model == "contextualnet":
+        from ContextualHashNet import ContextualHashNet
+        net = ContextualHashNet(in_channels=1, hash_bit_length=args.hash_bit_length, pca_channels=actual_pca_channels).to(device)
     else:
         raise ValueError("Unknown model")
 
@@ -1050,7 +1059,7 @@ def parse_args():
     p.add_argument("--shuffle_train_labels", action="store_true", help="Shuffle training labels to verify baseline")
     p.add_argument("--seed", type=int, default=345, help="Random seed for reproducibility")
     p.add_argument("--prepatched_dir", type=str, default=None, help="Path to already patched dataset")
-    p.add_argument("--model", type=str, default="ssftt", choices=["ssftt", "cnn", "mamba", "moe_mamba"], help="Architecture to run")
+    p.add_argument("--model", type=str, default="ssftt", choices=["ssftt", "cnn", "mamba", "moe_mamba", "ssrn", "a2s2kresnet", "contextualnet"], help="Architecture to run")
     p.add_argument("--split_type", type=str, default="random", choices=["random", "disjoint"], help="How to split train/test")
     p.add_argument("--use_supcon", action="store_true", help="Use Supervised Contrastive Loss")
     p.add_argument("--supcon_weight", type=float, default=0.1, help="Weight for SupCon loss")
