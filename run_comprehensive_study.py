@@ -9,7 +9,7 @@ import pandas as pd
 def parse_args():
     parser = argparse.ArgumentParser(description="Comprehensive Ablation Study Orchestrator")
     parser.add_argument("--datasets", nargs='+', default=["houston2013", "trento", "houston2018", "nilifossae"])
-    parser.add_argument("--models", nargs='+', default=["ssftt", "mamba", "moe_mamba", "ssrn", "a2s2kresnet", "contextualnet"])
+    parser.add_argument("--models", nargs='+', default=["ssftt", "mamba", "moe_mamba", "ssrn", "a2s2kresnet", "contextualnet", "cnn2d", "cnn3d", "hybridsn", "morphformer"])
     parser.add_argument("--losses", nargs='+', default=["csq", "dpn", "dsh", "greedyhash", "hashnet", "idhn", "orthohash", "dspch", "dhnn"])
     parser.add_argument("--bits", nargs='+', type=int, default=[16, 32, 64])
     parser.add_argument("--epochs", type=int, default=100)
@@ -124,7 +124,11 @@ def plot_pr_grids(results_df, output_dir):
         "ssrn": "#9467bd",      # Purple
         "a2s2kresnet": "#8c564b", # Brown
         "contextualnet": "#e377c2", # Pink
-        "cnn": "#d62728"        # Strong red (fallback)
+        "cnn": "#d62728",       # Strong red (fallback)
+        "cnn2d": "#8c564b",
+        "cnn3d": "#17becf",
+        "hybridsn": "#7f7f7f",
+        "morphformer": "#bcbd22"
     }
     
     # Professional display names for the legend
@@ -134,7 +138,11 @@ def plot_pr_grids(results_df, output_dir):
         "moe_mamba": "MoE-Mamba",
         "ssrn": "SSRN",
         "a2s2kresnet": "A2S2K-ResNet",
-        "contextualnet": "ContextualNet"
+        "contextualnet": "ContextualNet",
+        "cnn2d": "CNN-2D",
+        "cnn3d": "CNN-3D",
+        "hybridsn": "HybridSN",
+        "morphformer": "MorphFormer"
     }
     
     groups = results_df.groupby(["Dataset", "Loss", "Bits"])
@@ -194,11 +202,17 @@ def generate_markdown_table(df, output_path):
             f.write("| Model | " + " | ".join([f"{loss} ({b}b)" for loss in losses for b in bits]) + " | Avg Eval/Retrieval Time (s) |\n")
             f.write("|---|" + "|".join(["---" for _ in range(len(losses) * len(bits))]) + "|---|\n")
             
-            # Professional display names for the table
             model_display_names = {
                 "ssftt": "SSFTT",
                 "mamba": "Mamba",
-                "moe_mamba": "MoE-Mamba"
+                "moe_mamba": "MoE-Mamba",
+                "ssrn": "SSRN",
+                "a2s2kresnet": "A2S2K-ResNet",
+                "contextualnet": "ContextualNet",
+                "cnn2d": "CNN-2D",
+                "cnn3d": "CNN-3D",
+                "hybridsn": "HybridSN",
+                "morphformer": "MorphFormer"
             }
             
             models = ds_df["Model"].unique()

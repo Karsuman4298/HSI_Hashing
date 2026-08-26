@@ -430,6 +430,9 @@ class HSIDataset(torch.utils.data.Dataset):
 def create_data_loader(args):
     """End-to-end: raw .mat → train / test / all DataLoaders."""
 
+    ds_cfg = DATASETS[args.dataset]
+    num_classes = len(ds_cfg["class_names"])
+
     if hasattr(args, 'prepatched_dir') and args.prepatched_dir is not None:
         import scipy.io as sio
         import glob
@@ -535,10 +538,7 @@ def create_data_loader(args):
         train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
         db_loader = torch.utils.data.DataLoader(db_dataset, batch_size=args.batch_size, shuffle=False)
         query_loader = torch.utils.data.DataLoader(query_dataset, batch_size=args.batch_size, shuffle=False)
-        return train_loader, db_loader, query_loader, None, 15
-
-    ds_cfg = DATASETS[args.dataset]
-    num_classes = len(ds_cfg["class_names"])
+        return train_loader, db_loader, query_loader, None, num_classes
 
     # ── Load ──────────────────────────────────────────────────
     X, y = loadData(args.data_dir, ds_cfg)
@@ -861,6 +861,18 @@ def train(train_loader, db_loader, query_loader, num_classes, args):
     elif args.model == "contextualnet":
         from ContextualHashNet import ContextualHashNet
         net = ContextualHashNet(in_channels=1, hash_bit_length=args.hash_bit_length, pca_channels=actual_pca_channels).to(device)
+    elif args.model == "cnn2d":
+        from CNN2DHashNet import CNN2DHashNet
+        net = CNN2DHashNet(in_channels=actual_pca_channels, hash_bit_length=args.hash_bit_length).to(device)
+    elif args.model == "cnn3d":
+        from CNN3DHashNet import CNN3DHashNet
+        net = CNN3DHashNet(input_channels=actual_pca_channels, hash_bit_length=args.hash_bit_length, patch_size=args.patch).to(device)
+    elif args.model == "hybridsn":
+        from HybridSNHashNet import HybridSNHashNet
+        net = HybridSNHashNet(in_channels=actual_pca_channels, patch_size=args.patch, hash_bit_length=args.hash_bit_length).to(device)
+    elif args.model == "morphformer":
+        from MorphFormerHashNet import MorphFormerHashNet
+        net = MorphFormerHashNet(in_channels=actual_pca_channels, patch_size=args.patch, hash_bit_length=args.hash_bit_length).to(device)
     else:
         raise ValueError("Unknown model")
 
@@ -1108,7 +1120,7 @@ def parse_args():
     p.add_argument("--shuffle_train_labels", action="store_true", help="Shuffle training labels to verify baseline")
     p.add_argument("--seed", type=int, default=345, help="Random seed for reproducibility")
     p.add_argument("--prepatched_dir", type=str, default=None, help="Path to already patched dataset")
-    p.add_argument("--model", type=str, default="ssftt", choices=["ssftt", "cnn", "mamba", "moe_mamba", "ssrn", "a2s2kresnet", "contextualnet"], help="Architecture to run")
+    p.add_argument("--model", type=str, default="ssftt", choices=["ssftt", "cnn", "mamba", "moe_mamba", "ssrn", "a2s2kresnet", "contextualnet", "cnn2d", "cnn3d", "hybridsn", "morphformer"], help="Architecture to run")
     p.add_argument("--split_type", type=str, default="random", choices=["random", "disjoint"], help="How to split train/test")
     p.add_argument("--use_supcon", action="store_true", help="Use Supervised Contrastive Loss")
     p.add_argument("--supcon_weight", type=float, default=0.1, help="Weight for SupCon loss")

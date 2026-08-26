@@ -16,20 +16,34 @@ plt.rcParams.update({
 folder = '/Users/sumankar/Desktop/HSI_SSFTT/cls_SSFTT_IP/all_trento_results'
 losses = ['csq', 'dpn', 'dsh', 'greedyhash', 'hashnet', 'idhn', 'orthohash', 'dspch', 'dhnn']
 bits = ['16', '32', '64']
-models = ['ssftt', 'mamba', 'moe_mamba']
+models = ['ssftt', 'mamba', 'moe_mamba', 'ssrn', 'a2s2kresnet', 'contextualnet', 'cnn2d', 'cnn3d', 'hybridsn', 'morphformer']
 
 model_colors = {
     "ssftt": "#1f77b4",     
     "mamba": "#ff7f0e",     
-    "moe_mamba": "#2ca02c"  
+    "moe_mamba": "#2ca02c",
+    "ssrn": "#9467bd",
+    "a2s2kresnet": "#8c564b",
+    "contextualnet": "#e377c2",
+    "cnn2d": "#8c564b",
+    "cnn3d": "#17becf",
+    "hybridsn": "#7f7f7f",
+    "morphformer": "#bcbd22"
 }
 
 model_display_names = {
     "ssftt": "SSFTT",
     "mamba": "Mamba",
-    "moe_mamba": "MoE-Mamba"
+    "moe_mamba": "MoE-Mamba",
+    "ssrn": "SSRN",
+    "a2s2kresnet": "A2S2K-ResNet",
+    "contextualnet": "ContextualNet",
+    "cnn2d": "CNN-2D",
+    "cnn3d": "CNN-3D",
+    "hybridsn": "HybridSN",
+    "morphformer": "MorphFormer"
 }
-markers = ['D', 'o', 's']
+markers = ['D', 'o', 's', '^', 'v', 'p', '*', 'h', 'x', '+']
 
 # Change figsize to accurately reflect the 10x8 aspect ratio of the original individual plots!
 fig, axes = plt.subplots(3, 9, figsize=(90, 24))

@@ -31,7 +31,14 @@ def plot_curves(dataset, method, bit, models, save_dir="Checkpoints_Results"):
     DISPLAY_NAMES = {
         "ssftt": "SSFTT",
         "mamba": "Mamba",
-        "moe_mamba": "MoE-Mamba"
+        "moe_mamba": "MoE-Mamba",
+        "ssrn": "SSRN",
+        "a2s2kresnet": "A2S2K-ResNet",
+        "contextualnet": "ContextualNet",
+        "cnn2d": "CNN-2D",
+        "cnn3d": "CNN-3D",
+        "hybridsn": "HybridSN",
+        "morphformer": "MorphFormer"
     }
     
     # Store parsed P and R data for each model
