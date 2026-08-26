@@ -3,7 +3,7 @@ Generalized HSI Classification Training Script (SSFTT)
 =======================================================
 Works with: Indian Pines, Pavia University, Pavia Center, Salinas,
             Houston 2013, Houston 2018, Kennedy Space Center, Botswana,
-            WHU-Hi LongKou, and any custom HSI .mat pair.
+            WHU-Hi LongKou, Hanchuan, Honghu, and any custom HSI .mat pair.
 
 Usage:
     python train_hsi.py --dataset pavia_university
@@ -198,9 +198,39 @@ DATASETS = {
         "label_file": "WHU_Hi_LongKou_gt.mat",
         "label_key":  "WHU_Hi_LongKou_gt",
         "class_names": [
-            "Corn", "Cotton", "Sesame", "Broad-leaf-soybean",
-            "Narrow-leaf-soybean", "Rice", "Water",
-            "Roads-and-houses", "Mixed-weed",
+            "Corn", "Cotton", "Sesame", "Broad-leaf soybean",
+            "Narrow-leaf soybean", "Rice", "Water",
+            "Roads and houses", "Mixed weed",
+        ],
+    },
+
+    # ── WHU-Hi HanChuan ───────────────────────────────────────
+    "hanchuan": {
+        "data_file":  "WHU_Hi_HanChuan.mat",
+        "data_key":   "WHU_Hi_HanChuan",
+        "label_file": "WHU_Hi_HanChuan_gt.mat",
+        "label_key":  "WHU_Hi_HanChuan_gt",
+        "class_names": [
+            "Strawberry", "Cowpea", "Soybean", "Sorghum", 
+            "Water spinach", "Watermelon", "Greens", "Trees", 
+            "Grass", "Red roof", "Gray roof", "Plastic", 
+            "Bare soil", "Road", "Bright object", "Water"
+        ],
+    },
+
+    # ── WHU-Hi HongHu ─────────────────────────────────────────
+    "honghu": {
+        "data_file":  "WHU_Hi_HongHu.mat",
+        "data_key":   "WHU_Hi_HongHu",
+        "label_file": "WHU_Hi_HongHu_gt.mat",
+        "label_key":  "WHU_Hi_HongHu_gt",
+        "class_names": [
+            "Red roof", "Road", "Bare soil", "Cotton", 
+            "Cotton firewood", "Rape", "Chinese cabbage", "Pakchoi", 
+            "Cabbage", "Tuber mustard", "Brassica parachinensis", "Brassica chinensis", 
+            "Small Brassica chinensis", "Lactuca sativa", "Celtuce", "Film covered lettuce", 
+            "Romaine lettuce", "Carrot", "White radish", "Garlic sprout", 
+            "Broad bean", "Tree"
         ],
     },
 }
@@ -402,6 +432,9 @@ def create_data_loader(args):
 
     if hasattr(args, 'prepatched_dir') and args.prepatched_dir is not None:
         import scipy.io as sio
+        import glob
+        
+        # Try to dynamically find the tr and te files (to support custom names like WHU_Hi_HanChuan_Tr.mat)
         if args.pca == 48:
             tr_file = "HSI_Tr_48.mat"
             te_file = "HSI_Te_48.mat"
@@ -409,6 +442,14 @@ def create_data_loader(args):
             tr_file = "HSI_Tr.mat"
             te_file = "HSI_Te.mat"
             
+        # Check if default files exist, if not search for *_Tr.mat and *_Te.mat
+        if not os.path.exists(os.path.join(args.prepatched_dir, tr_file)):
+            tr_candidates = glob.glob(os.path.join(args.prepatched_dir, "*_Tr.mat"))
+            te_candidates = glob.glob(os.path.join(args.prepatched_dir, "*_Te.mat"))
+            if tr_candidates and te_candidates:
+                tr_file = os.path.basename(tr_candidates[0])
+                te_file = os.path.basename(te_candidates[0])
+
         print(f"\n... Loading Pre-Patched Disjoint Split from {args.prepatched_dir} ({tr_file}) ...")
         Xtrain = load_single_mat(os.path.join(args.prepatched_dir, tr_file))
         Xtest  = load_single_mat(os.path.join(args.prepatched_dir, te_file))
@@ -416,16 +457,24 @@ def create_data_loader(args):
         tr_label_path = os.path.join(args.prepatched_dir, "TrLabel.mat")
         te_label_path = os.path.join(args.prepatched_dir, "TeLabel.mat")
         
+        # Look for WHU-Hi style custom names if TrLabel.mat doesn't exist
+        if not os.path.exists(tr_label_path):
+            tr_gt_candidates = glob.glob(os.path.join(args.prepatched_dir, "*_Tr_gt.mat"))
+            te_gt_candidates = glob.glob(os.path.join(args.prepatched_dir, "*_Te_gt.mat"))
+            if tr_gt_candidates and te_gt_candidates:
+                tr_label_path = tr_gt_candidates[0]
+                te_label_path = te_gt_candidates[0]
+        
         # Fallback logic: If separate label files don't exist, try to extract them from the main data file 
         # (e.g. if 'Houston18_Tr_gt' is bundled inside 'Houston18_Tr.mat')
         if os.path.exists(tr_label_path):
-            ytrain = load_single_mat(tr_label_path).squeeze()
+            ytrain = load_single_mat(tr_label_path, preferred_key=None, is_label=True).squeeze()
         else:
             print(f"Warning: {tr_label_path} not found. Attempting to extract bundled labels from {tr_file}...")
             ytrain = load_single_mat(os.path.join(args.prepatched_dir, tr_file), preferred_key=None, is_label=True).squeeze()
             
         if os.path.exists(te_label_path):
-            ytest = load_single_mat(te_label_path).squeeze()
+            ytest = load_single_mat(te_label_path, preferred_key=None, is_label=True).squeeze()
         else:
             print(f"Warning: {te_label_path} not found. Attempting to extract bundled labels from {te_file}...")
             ytest = load_single_mat(os.path.join(args.prepatched_dir, te_file), preferred_key=None, is_label=True).squeeze()

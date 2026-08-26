@@ -25,7 +25,10 @@ def run_experiment(dataset, model, loss, bit, epochs, patch, pca, output_dir):
         "houston2018": ["../Houston18"],
         "trento": ["../Trento"],
         "indian_pines": ["cls_SSFTT_IP/ip_alreadypatched_dataset"],
-        "nilifossae": ["../NiliFossae", "cls_SSFTT_IP/NiliFossae_dataset"]
+        "nilifossae": ["../NiliFossae", "cls_SSFTT_IP/NiliFossae_dataset"],
+        "longkou": ["WHU-HI_HSI_Dataset_Disjoint_10Train_90Test/WHU-Hi-LongKou", "../WHU-HI_HSI_Dataset_Disjoint_10Train_90Test/WHU-Hi-LongKou"],
+        "hanchuan": ["WHU-HI_HSI_Dataset_Disjoint_10Train_90Test/WHU-Hi-HanChuan", "../WHU-HI_HSI_Dataset_Disjoint_10Train_90Test/WHU-Hi-HanChuan"],
+        "honghu": ["WHU-HI_HSI_Dataset_Disjoint_10Train_90Test/WHU-Hi-HongHu", "../WHU-HI_HSI_Dataset_Disjoint_10Train_90Test/WHU-Hi-HongHu"]
     }
 
     prepatched_map = {}
