@@ -228,26 +228,42 @@ def plot_master_pr_curves(dataset, loss, bit, models, result_dir="output", outpu
     valid_plots = 0
     
     for model in models:
-        # Check for NPZ file from comprehensive study
-        run_name = f"{model}_{dataset}_{loss}_pca30_patch11_bits{bit}"
-        npz_path = os.path.join(result_dir, f"{run_name}_pr.npz")
-        
-        # Check for TXT file from base training
-        txt_path = os.path.join(result_dir, f"{dataset}_{loss}_{model}_Bit{bit}.txt")
-        
         P, R = None, None
         
-        if os.path.exists(npz_path):
-            data = np.load(npz_path)
-            R, P = data['R'], data['P']
-        elif os.path.exists(txt_path):
-            with open(txt_path, 'r') as f:
-                lines = f.readlines()
-            pr_line = next((line for line in reversed(lines) if "PR |" in line), None)
-            if pr_line:
-                data = [d for d in pr_line[pr_line.rfind("|")+2:-2].strip().split(' ') if d]
-                P = [float(data[j]) for j in range(len(data)) if j % 2 == 0]
-                R = [float(data[j]) for j in range(len(data)) if j % 2 == 1]
+        # Dynamically search directory for matching file
+        matched_file = None
+        is_npz = False
+        
+        if os.path.exists(result_dir):
+            for fname in os.listdir(result_dir):
+                fname_lower = fname.lower()
+                # Check if file matches all our required criteria
+                if (model.lower() in fname_lower and 
+                    dataset.lower() in fname_lower and 
+                    loss.lower() in fname_lower and 
+                    str(bit) in fname_lower):
+                    
+                    if fname_lower.endswith('.npz'):
+                        matched_file = os.path.join(result_dir, fname)
+                        is_npz = True
+                        break
+                    elif fname_lower.endswith('.txt'):
+                        matched_file = os.path.join(result_dir, fname)
+                        is_npz = False
+                        
+        if matched_file:
+            if is_npz:
+                data = np.load(matched_file)
+                if 'R' in data and 'P' in data:
+                    R, P = data['R'], data['P']
+            else:
+                with open(matched_file, 'r') as f:
+                    lines = f.readlines()
+                pr_line = next((line for line in reversed(lines) if "PR |" in line), None)
+                if pr_line:
+                    data = [d for d in pr_line[pr_line.rfind("|")+2:-2].strip().split(' ') if d]
+                    P = [float(data[j]) for j in range(len(data)) if j % 2 == 0]
+                    R = [float(data[j]) for j in range(len(data)) if j % 2 == 1]
         
         if P is not None and R is not None:
             color = MODEL_COLORS.get(model, "#333333")
