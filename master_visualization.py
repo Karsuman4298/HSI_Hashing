@@ -237,8 +237,10 @@ def plot_master_pr_curves(dataset, loss, bit, models, result_dir="output", outpu
         if os.path.exists(result_dir):
             for fname in os.listdir(result_dir):
                 fname_lower = fname.lower()
-                # Check if file matches all our required criteria
-                if (model.lower() in fname_lower and 
+                # Check if file matches all our required criteria using strict boundaries
+                # so "mamba" doesn't accidentally match "moe_mamba"
+                model_l = model.lower()
+                if ((fname_lower.startswith(f"{model_l}_") or f"_{model_l}_" in fname_lower) and 
                     dataset.lower() in fname_lower and 
                     loss.lower() in fname_lower and 
                     str(bit) in fname_lower):
