@@ -292,7 +292,8 @@ def plot_master_pr_curves(dataset, loss, bit, models, result_dir="output", outpu
         legend.get_frame().set_facecolor('white')
         legend.get_frame().set_edgecolor('#CFD8DC')
         
-        out_pr = os.path.join(output_dir, f"master_pr_{dataset}_{loss}_bits{bit}.pdf")
+        models_str = '-'.join(models)
+        out_pr = os.path.join(output_dir, f"master_pr_{dataset}_{loss}_bits{bit}_{models_str}.pdf")
         plt.tight_layout()
         plt.savefig(out_pr, bbox_inches='tight', dpi=300)
         plt.close(fig)
