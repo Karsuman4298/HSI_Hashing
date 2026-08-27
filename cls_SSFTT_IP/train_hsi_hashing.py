@@ -1210,7 +1210,7 @@ if __name__ == "__main__":
         mAP_cont = float("nan")
     else:
         mAP_bin, q_codes_b, q_labels_b, db_codes_b, db_labels_b = evaluate_retrieval(device, net, query_loader, db_loader, inject_noise=args.random_noise_eval, continuous=False)
-        mAP_cont, _, _, _, _ = evaluate_retrieval(device, net, query_loader, db_loader, inject_noise=args.random_noise_eval, continuous=True)
+        mAP_cont, q_codes_c, q_labels_c, db_codes_c, db_labels_c = evaluate_retrieval(device, net, query_loader, db_loader, inject_noise=args.random_noise_eval, continuous=True)
         mAP = mAP_bin  # just to keep downstream variables happy
         
     test_time = time.perf_counter() - tic
@@ -1248,8 +1248,8 @@ if __name__ == "__main__":
         except ImportError:
             draw_range = [1, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000]
 
-        print("Calculating Precision-Recall Curve...")
-        P_list, R_list = calculate_pr_curve_vectorized(q_codes_b, q_labels_b, db_codes_b, db_labels_b, draw_range)
+        print("Calculating Precision-Recall Curve (Continuous)...")
+        P_list, R_list = calculate_pr_curve_vectorized(q_codes_c, q_labels_c, db_codes_c, db_labels_c, draw_range)
         
         plt.rcParams.update({'font.size': 20})
         plt.figure(figsize=(11, 9))
