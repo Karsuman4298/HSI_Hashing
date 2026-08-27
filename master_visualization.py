@@ -221,7 +221,7 @@ def _save_with_matplotlib(prediction_map, output_path, cmap, show_colorbar, dpi,
 # =====================================================================
 # Master PR Curve Generator (Reads from NPZ or TXT)
 # =====================================================================
-def plot_master_pr_curves(dataset, loss, bit, models, result_dir="output", output_dir="master_visualizations"):
+def plot_master_pr_curves(dataset, loss, bit, models, result_dirs=["output"], output_dir="master_visualizations"):
     os.makedirs(output_dir, exist_ok=True)
     fig, ax = plt.subplots(figsize=(12, 10))
     
@@ -234,8 +234,14 @@ def plot_master_pr_curves(dataset, loss, bit, models, result_dir="output", outpu
         matched_file = None
         is_npz = False
         
-        if os.path.exists(result_dir):
-            for fname in os.listdir(result_dir):
+        if isinstance(result_dirs, str):
+            result_dirs = [result_dirs]
+            
+        for r_dir in result_dirs:
+            if matched_file: break
+            if not os.path.exists(r_dir): continue
+            
+            for fname in os.listdir(r_dir):
                 fname_lower = fname.lower()
                 # Check if file matches all our required criteria using strict boundaries
                 # so "mamba" doesn't accidentally match "moe_mamba"
@@ -246,11 +252,11 @@ def plot_master_pr_curves(dataset, loss, bit, models, result_dir="output", outpu
                     str(bit) in fname_lower):
                     
                     if fname_lower.endswith('.npz'):
-                        matched_file = os.path.join(result_dir, fname)
+                        matched_file = os.path.join(r_dir, fname)
                         is_npz = True
                         break
                     elif fname_lower.endswith('.txt'):
-                        matched_file = os.path.join(result_dir, fname)
+                        matched_file = os.path.join(r_dir, fname)
                         is_npz = False
                         
         if matched_file:
@@ -310,7 +316,7 @@ if __name__ == "__main__":
     parser.add_argument("--datasets", nargs='+', default=["houston2013", "trento", "houston2018", "nilifossae"], help="Datasets")
     parser.add_argument("--losses", nargs='+', default=["csq"], help="Losses to plot PR curves for")
     parser.add_argument("--bits", nargs='+', type=int, default=[64], help="Hash bit lengths to plot")
-    parser.add_argument("--result_dir", type=str, default="output", help="Directory where metrics are saved")
+    parser.add_argument("--result_dir", nargs='+', default=["output"], help="Directory (or directories) where metrics are saved")
     parser.add_argument("--output_dir", type=str, default="master_visualizations", help="Where to save visual outputs")
     
     # Classification map specific arguments
