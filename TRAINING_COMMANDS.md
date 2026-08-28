@@ -1,83 +1,113 @@
-# HSI SSFTT Hashing - Training Commands Guide
+# HSI Hashing - Comprehensive Command Guide
 
-This document contains a comprehensive list of commands to run various experiments on the Houston 2013 dataset using the streamlined SSFTT architecture. 
+This guide covers everything from training individual models, running massive grid searches across all architectures and loss functions, to generating publication-ready visualizations.
 
-## 1. Core Base Commands
+---
 
-### A. Pre-Patched Dataset (PCA Compressed to 30 Channels)
-**Recommended:** Flattens the pre-patched dataset, applies PCA to reduce noise, and skyrockets performance to ~80% mAP.
+## 1. Individual Model Training
+
+Use `train_hsi_hashing.py` to train a single configuration. This script supports 9 hashing loss functions and 10 architectures.
+
+### Basic Training Command (Example: Houston 2013, SSFTT, CSQ, 64-bit)
 ```bash
-PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
+python3 cls_SSFTT_IP/train_hsi_hashing.py \
   --dataset houston2013 \
-  --prepatched_dir cls_SSFTT_IP/houston13_alreadypatched_dataset \
+  --model ssftt \
+  --loss_type csq \
   --hash_bit_length 64 \
   --epochs 100 \
-  --pca 30
+  --pca 30 \
+  --output_dir output
 ```
 
-### B. Pre-Patched Dataset (Full 144 Channels)
-Uses the pre-extracted 11x11 patches without any PCA compression.
+### Dataset Options
+- `houston2013`
+- `houston2018`
+- `trento`
+- `nilifossae`
+- `indian_pines`
+
+### Supported Models
+`ssftt`, `mamba`, `moe_mamba`, `ssrn`, `a2s2kresnet`, `contextualnet`, `cnn2d`, `cnn3d`, `hybridsn`, `morphformer`
+
+### Supported Loss Functions
+`csq`, `dpn`, `dsh`, `greedyhash`, `hashnet`, `idhn`, `orthohash`, `dspch`, `dhnn`
+
+---
+
+## 2. Comprehensive Study Orchestration
+
+To run a massive batch of models across multiple datasets, bits, and loss functions automatically, use `run_comprehensive_study.py`. This script coordinates `train_hsi_hashing.py` calls and saves everything cleanly into specific folders.
+
+### Example: Train 6 Models on Trento across All Bits and Losses
 ```bash
-PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
-  --dataset houston2013 \
-  --prepatched_dir cls_SSFTT_IP/houston13_alreadypatched_dataset \
-  --hash_bit_length 64 \
+python3 run_comprehensive_study.py \
+  --datasets trento \
+  --models ssftt mamba moe_mamba ssrn a2s2kresnet contextualnet \
+  --losses csq dhnn dpn dsh dspch greedyhash hashnet idhn orthohash \
+  --bits 16 32 64 \
   --epochs 100 \
-  --pca 144
+  --output_dir trained_results_hasing/output_Trento_Comprehensive
 ```
 
-### C. Our DBSCAN Disjoint Split (Full 144 Channels)
-Uses our custom spatial clustering to completely isolate training/testing pixels geographically to simulate severe real-world domain shifts.
+*Note: Results (params, PR curves, logs) will be saved in the specified `--output_dir`.*
+
+---
+
+## 3. Master Visualization (Precision-Recall Curves)
+
+Use `master_visualization.py` with `--mode pr_curve` to combine multiple models into single publication-ready PR plots. 
+
+If your results are split across multiple directories (e.g., `output_Trento_ssft_mamba_moemamba` and `output_Trento_A2S2Kresnet_ssrn_ContextualNet`), you can pass **multiple folders** to `--result_dir`.
+
+### Example: Generate Combined 6-Model PR Curves for Houston 2013
+This command instantly generates PR curves for all 9 loss functions and all 3 bit lengths by automatically scanning the provided result folders:
+
 ```bash
-PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
-  --dataset houston2013 \
-  --data_dir cls_SSFTT_IP/houston13_our_dataset \
-  --patch 11 \
-  --split_type disjoint \
-  --hash_bit_length 64 \
-  --epochs 100 \
-  --pca 144
+BASE_DIR="trained_results_hasing"
+OUT_DIR="master_visualizations"
+
+python3 master_visualization.py \
+  --mode pr_curve \
+  --models ssftt mamba moe_mamba ssrn a2s2kresnet contextualnet \
+  --datasets houston2013 \
+  --losses csq dhnn dpn dsh dspch greedyhash hashnet idhn orthohash \
+  --bits 16 32 64 \
+  --result_dir "$BASE_DIR/output_Houston13_ssft_mamba_moemamba" "$BASE_DIR/Houston13_SSRN_A2S2KResNet_Contextualnet" \
+  --output_dir "$OUT_DIR"
 ```
 
 ---
 
-## Quick Reference Flags
-* `--hash_bit_length`: Change the length of the binary hash code (`16`, `32`, `64`, `128`)
-* `--pca`: Change the number of channels (`30`, `48`, `144`). Set to `144` or `0` to completely bypass PCA compression.
-* `--epochs`: Change the number of training loops (default `100`).
-* `--num_tokens`: Change the number of learned tokens for SSFTT compression (default `4`).
+## 4. Master Visualization (Classification Maps)
 
+Use `master_visualization.py` with `--mode cls_map` to generate false-color classification maps and confusion matrices from saved model weights (`.pth` files).
 
+### Example: Generate a Classification Map
+```bash
+python3 master_visualization.py \
+  --mode cls_map \
+  --models ssftt \
+  --datasets houston2013 \
+  --losses csq \
+  --bits 64 \
+  --result_dir trained_results_hasing/output_Houston13_ssft_mamba_moemamba \
+  --output_dir master_visualizations
+```
 
-"""
-# 1. CSQ (Central Similarity Quantization)
-PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
-  --dataset houston2013 --prepatched_dir cls_SSFTT_IP/houston13_alreadypatched_dataset \
-  --hash_bit_length 64 --epochs 100 --pca 30 --loss_type csq
+### Advanced Flags for Classification Maps
+- `--block_background`: Sets the unlabeled background pixels to completely black.
+- `--mask_background`: Forces the Ground Truth background pixels to 0, completely ignoring them in visualization.
 
-# 2. DPN (Deep Pairwise Hashing)
-PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
-  --dataset houston2013 --prepatched_dir cls_SSFTT_IP/houston13_alreadypatched_dataset \
-  --hash_bit_length 64 --epochs 100 --pca 30 --loss_type dpn
-
-# 3. DSH (Deep Supervised Hashing)
-PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
-  --dataset houston2013 --prepatched_dir cls_SSFTT_IP/houston13_alreadypatched_dataset \
-  --hash_bit_length 64 --epochs 100 --pca 30 --loss_type dsh
-
-# 4. GreedyHash
-PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
-  --dataset houston2013 --prepatched_dir cls_SSFTT_IP/houston13_alreadypatched_dataset \
-  --hash_bit_length 64 --epochs 100 --pca 30 --loss_type greedyhash
-
-# 5. HashNet
-PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
-  --dataset houston2013 --prepatched_dir cls_SSFTT_IP/houston13_alreadypatched_dataset \
-  --hash_bit_length 64 --epochs 100 --pca 30 --loss_type hashnet
-
-# 6. IDHN (Improved Deep Hashing Network)
-PYTHONPATH=cls_SSFTT_IP python3 cls_SSFTT_IP/train_hsi_hashing.py \
-  --dataset houston2013 --prepatched_dir cls_SSFTT_IP/houston13_alreadypatched_dataset \
-  --hash_bit_length 64 --epochs 100 --pca 30 --loss_type idhn
-
-"""
+Example with background blocking:
+```bash
+python3 master_visualization.py \
+  --mode cls_map \
+  --models mamba \
+  --datasets trento \
+  --losses dhnn \
+  --bits 32 \
+  --result_dir trained_results_hasing/output_Trento_ssft_mamba_moemamba \
+  --output_dir master_visualizations \
+  --block_background
+```
