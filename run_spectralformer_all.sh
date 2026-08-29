@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Datasets to train on
-DATASETS=("indian_pines" "pavia_university" "salinas" "houston2013" "trento" "houston2018" "ksc" "botswana")
+DATASETS=("houston2013" "houston2018" "nilifossae" "trento")
 
 # Hash bit lengths
 BITS=(16 32 64)
