@@ -873,6 +873,9 @@ def train(train_loader, db_loader, query_loader, num_classes, args):
     elif args.model == "morphformer":
         from MorphFormerHashNet import MorphFormerHashNet
         net = MorphFormerHashNet(in_channels=actual_pca_channels, patch_size=args.patch, hash_bit_length=args.hash_bit_length).to(device)
+    elif args.model == "spectralformer":
+        from SpectralFormerHashNet import SpectralFormerHashNet
+        net = SpectralFormerHashNet(in_channels=actual_pca_channels, hash_bit_length=args.hash_bit_length, patch_size=args.patch).to(device)
     else:
         raise ValueError("Unknown model")
 
@@ -1120,7 +1123,7 @@ def parse_args():
     p.add_argument("--shuffle_train_labels", action="store_true", help="Shuffle training labels to verify baseline")
     p.add_argument("--seed", type=int, default=345, help="Random seed for reproducibility")
     p.add_argument("--prepatched_dir", type=str, default=None, help="Path to already patched dataset")
-    p.add_argument("--model", type=str, default="ssftt", choices=["ssftt", "cnn", "mamba", "moe_mamba", "ssrn", "a2s2kresnet", "contextualnet", "cnn2d", "cnn3d", "hybridsn", "morphformer"], help="Architecture to run")
+    p.add_argument("--model", type=str, default="ssftt", choices=["ssftt", "cnn", "mamba", "moe_mamba", "ssrn", "a2s2kresnet", "contextualnet", "cnn2d", "cnn3d", "hybridsn", "morphformer", "spectralformer"], help="Architecture to run")
     p.add_argument("--split_type", type=str, default="random", choices=["random", "disjoint"], help="How to split train/test")
     p.add_argument("--use_supcon", action="store_true", help="Use Supervised Contrastive Loss")
     p.add_argument("--supcon_weight", type=float, default=0.1, help="Weight for SupCon loss")
