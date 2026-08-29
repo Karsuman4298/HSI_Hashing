@@ -9,7 +9,7 @@ import pandas as pd
 def parse_args():
     parser = argparse.ArgumentParser(description="Comprehensive Ablation Study Orchestrator")
     parser.add_argument("--datasets", nargs='+', default=["houston2013", "trento", "houston2018", "nilifossae"])
-    parser.add_argument("--models", nargs='+', default=["ssftt", "mamba", "moe_mamba", "ssrn", "a2s2kresnet", "contextualnet", "cnn2d", "cnn3d", "hybridsn", "morphformer"])
+    parser.add_argument("--models", nargs='+', default=["ssftt", "mamba", "moe_mamba", "ssrn", "a2s2kresnet", "contextualnet", "cnn2d", "cnn3d", "hybridsn", "morphformer", "spectralformer"])
     parser.add_argument("--losses", nargs='+', default=["csq", "dpn", "dsh", "greedyhash", "hashnet", "idhn", "orthohash", "dspch", "dhnn"])
     parser.add_argument("--bits", nargs='+', type=int, default=[16, 32, 64])
     parser.add_argument("--epochs", type=int, default=100)
@@ -128,7 +128,8 @@ def plot_pr_grids(results_df, output_dir):
         "cnn2d": "#8c564b",
         "cnn3d": "#17becf",
         "hybridsn": "#7f7f7f",
-        "morphformer": "#bcbd22"
+        "morphformer": "#bcbd22",
+        "spectralformer": "#17becf"
     }
     
     # Professional display names for the legend
@@ -142,7 +143,8 @@ def plot_pr_grids(results_df, output_dir):
         "cnn2d": "CNN-2D",
         "cnn3d": "CNN-3D",
         "hybridsn": "HybridSN",
-        "morphformer": "MorphFormer"
+        "morphformer": "MorphFormer",
+        "spectralformer": "SpectralFormer"
     }
     
     groups = results_df.groupby(["Dataset", "Loss", "Bits"])
@@ -212,7 +214,8 @@ def generate_markdown_table(df, output_path):
                 "cnn2d": "CNN-2D",
                 "cnn3d": "CNN-3D",
                 "hybridsn": "HybridSN",
-                "morphformer": "MorphFormer"
+                "morphformer": "MorphFormer",
+                "spectralformer": "SpectralFormer"
             }
             
             models = ds_df["Model"].unique()
