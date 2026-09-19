@@ -65,7 +65,8 @@ def test_render_bold_missing_and_na(tmp_path):
     args = Namespace(manifest=path, outdir=tmp_path / 'out', runner=None, strict=False)
     generate(args)
     md = (args.outdir / 'table2.md').read_text()
-    assert '| 70.00 | **90.00** | -- | **80.00** | **90.00** | N/A |' in md
+    assert '| Model (cls) | 70.00 | **90.00** | -- |' in md
+    assert '| Model (all) | **80.00** | **90.00** | N/A |' in md
     assert '\\textbf{80.00}' in (args.outdir / 'table2.tex').read_text()
     args.strict = True
     with pytest.raises(SystemExit, match='Incomplete'):

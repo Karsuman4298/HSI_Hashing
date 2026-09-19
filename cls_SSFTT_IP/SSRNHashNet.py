@@ -61,7 +61,7 @@ class SSRNHashNet(nn.Module):
             nn.Linear(1024, hash_bit_length)
         )
 
-    def forward(self, X, mask=None, return_features=False):
+    def forward(self, X, mask=None, return_features=False, return_tokens=False):
         # Input shape from dataloader: (B, 1, C, H, W) where C is band
         # Convert to SSRN shape: (B, 1, H, W, BAND)
         x1 = X.permute(0, 1, 3, 4, 2)
@@ -75,6 +75,8 @@ class SSRNHashNet(nn.Module):
 
         x3 = self.res_net3(x2)
         x3 = self.res_net4(x3)
+        if return_tokens:
+            return x3
         x4 = self.avg_pooling(x3)
         pooled = x4.view(x4.size(0), -1)
         

@@ -41,10 +41,12 @@ class HybridSNHashNet(nn.Module):
             y = self.block_2_2D(y)
             return y.shape[1] * y.shape[2] * y.shape[3]
 
-    def forward(self, x, return_features=False):
+    def forward(self, x, return_features=False, return_tokens=False):
         y = self.block_1_3D(x)
         y = y.view(-1, y.shape[1] * y.shape[2], y.shape[3], y.shape[4])
         y = self.block_2_2D(y)
+        if return_tokens:
+            return y
         y = y.view(y.size(0), -1)
         
         pooled = self.classifier(y)

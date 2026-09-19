@@ -159,16 +159,17 @@ class CrossAttentionBlock(nn.Module):
             layer = Block(dim,i)
             self.layer.append(copy.deepcopy(layer))
 
-    def forward(self, x):
+    def forward(self, x, return_all=False):
         for layer_block in self.layer:
             x = layer_block(x)
         x= x.reshape(x.shape[0],x.shape[1],-1)
         x = self.encoder_norm(x)
-        return x[:,0]
+        return x if return_all else x[:,0]
 
 class MorphFormerHashNet(nn.Module):
-    def __init__(self, in_channels, patch_size=11, hash_bit_length=32, FM=16):
+    def __init__(self, in_channels, patch_size=11, hash_bit_length=32, FM=16, use_all_tokens=False):
         super(MorphFormerHashNet, self).__init__()
+        self.use_all_tokens = use_all_tokens
         self.patchsize = patch_size
         NC = in_channels
         self.conv5 = nn.Sequential(
@@ -186,7 +187,7 @@ class MorphFormerHashNet(nn.Module):
         )
         self.ca = CrossAttentionBlock(FM*4)
         
-        self.hash_head = nn.Linear(FM*4, hash_bit_length)
+        self.hash_head = nn.Linear(FM*4 * (FM*2 + 1) if use_all_tokens else FM*4, hash_bit_length)
         torch.nn.init.xavier_uniform_(self.hash_head.weight)
         torch.nn.init.normal_(self.hash_head.bias, std=1e-6)
         
@@ -222,7 +223,7 @@ class MorphFormerHashNet(nn.Module):
         
         x = embeddings.reshape(embeddings.shape[0], embeddings.shape[1], int(math.sqrt(self.FM*4)), int(math.sqrt(self.FM*4)))
         
-        pooled = self.ca(x)
+        pooled = self.ca(x, return_all=self.use_all_tokens)
         pooled = pooled.reshape(pooled.shape[0], -1)
         hash_codes = self.hash_head(pooled)
         

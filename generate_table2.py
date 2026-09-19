@@ -135,35 +135,39 @@ def dimensions(rows):
 
 
 def render(rows, outdir):
+    """Reference Table 3 layout: paired backbone rows, losses across columns."""
     datasets, models, losses = dimensions(rows)
     idx = {tuple(r[k] for k in KEYS): r for r in rows}
-    caption = ('Retrieval mAP (\\%) using CLS-only and all features at 16, 32, and 64 bits. '
-               'Bold indicates the better feature mode for the same dataset, backbone, loss and bit length '
-               '(ties at the displayed precision are bold). -- denotes an unmeasured result; '
-               'N/A denotes an explicitly inapplicable mode.')
-    tex = [r'\small', r'\setlength{\tabcolsep}{6pt}', r'\begin{longtable}{llrrrrrr}',
-           r'\caption{' + caption + r'}\label{tab:cls-all-hashing}\\', r'\toprule',
-           r' & & \multicolumn{3}{c}{CLS-only features} & \multicolumn{3}{c}{All features}\\',
-           r'\cmidrule(lr){3-5}\cmidrule(lr){6-8}',
-           r'Backbone & Loss & 16 bits & 32 bits & 64 bits & 16 bits & 32 bits & 64 bits\\',
-           r'\midrule', r'\endfirsthead',
-           r'\multicolumn{8}{c}{\tablename\ \thetable{} -- continued}\\', r'\toprule',
-           r' & & \multicolumn{3}{c}{CLS-only features} & \multicolumn{3}{c}{All features}\\',
-           r'Backbone & Loss & 16 bits & 32 bits & 64 bits & 16 bits & 32 bits & 64 bits\\',
-           r'\midrule', r'\endhead', r'\midrule',
-           r'\multicolumn{8}{r}{Continued on next page}\\', r'\endfoot',
-           r'\bottomrule', r'\endlastfoot']
+    columns = 1 + 3 * len(losses)
+    caption = (r'Retrieval mAP@All (\%) for CLS-only and all-token features at 16, 32 and 64 bits. '
+               r'Bold indicates the better feature mode within each backbone/loss/bit pair; '
+               r'ties at two decimals are bold. Backbones without native CLS tokens use the '
+               r'shared learned-CLS transformer adapter in both variants. -- denotes unmeasured results.')
+    header = ['Backbone network'] + [r'\multicolumn{3}{c}{' + escape(loss) + '}' for loss in losses]
+    bits_header = [''] + [f'{b}b' for _ in losses for b in BITS]
+    tex = [r'\scriptsize', r'\setlength{\tabcolsep}{2pt}',
+           r'\begin{longtable}{l' + 'r' * (columns - 1) + '}',
+           r'\caption{' + caption + r'}\label{tab:cls-all-hashing}\\',
+           r'\toprule', ' & '.join(header) + r'\\',
+           ' & '.join(bits_header) + r'\\', r'\midrule', r'\endfirsthead',
+           r'\multicolumn{' + str(columns) + r'}{c}{Table II -- continued}\\',
+           r'\toprule', ' & '.join(header) + r'\\', ' & '.join(bits_header) + r'\\',
+           r'\midrule', r'\endhead', r'\bottomrule', r'\endfoot']
     md = ['# Table II: CLS-only versus all-features retrieval', '',
-          'mAP (%). Bold compares the two feature modes at each bit length; ties are bold. '
-          '`--` = unmeasured; `N/A` = explicitly inapplicable.', '']
+          'mAP@All (%). Bold compares CLS/all within each backbone, loss and bit length; '
+          'ties at two decimals are bold. Backbones without native CLS tokens use a shared '
+          'learned-CLS transformer adapter in both variants. `--` = unmeasured.', '']
     for dataset in datasets:
-        tex += [r'\multicolumn{8}{c}{\textbf{' + escape(dataset) + r'}}\\*', r'\midrule']
-        md += [f'## {dataset}', '', '| Backbone | Loss | CLS 16 | CLS 32 | CLS 64 | All 16 | All 32 | All 64 |',
-               '|---|---|---:|---:|---:|---:|---:|---:|']
+        tex += [r'\multicolumn{' + str(columns) + r'}{c}{\textbf{Results on ' + escape(dataset) +
+                r' (mAP@All in \%)}}\\*', r'\midrule']
+        md += [f'## {dataset}', '', '| Backbone network | ' +
+               ' | '.join(f'{loss} {b}b' for loss in losses for b in BITS) + ' |',
+               '|---|' + '---:|' * (columns - 1)]
         for model in models:
-            for loss in losses:
-                tc, mc = [escape(model), escape(loss)], [model, loss]
-                for mode in MODES:
+            for mode in MODES:
+                label = f'{model} ({mode})'
+                tc, mc = [escape(label)], [label]
+                for loss in losses:
                     for bits in BITS:
                         row = idx.get((dataset, model, loss, str(bits), mode), {})
                         pair = [idx.get((dataset, model, loss, str(bits), m), {}) for m in MODES]
@@ -173,7 +177,7 @@ def render(rows, outdir):
                         display = 'N/A' if row.get('applicable') == 'no' else ('--' if val is None else f'{val:.2f}')
                         tc.append(r'\textbf{' + display + '}' if bold else display)
                         mc.append('**' + display + '**' if bold else display)
-                tex.append(' & '.join(tc) + r' \\')
+                tex.append(' & '.join(tc) + (r'\\*' if mode == 'cls' else r'\\'))
                 md.append('| ' + ' | '.join(mc) + ' |')
             tex.append(r'\addlinespace')
         md.append('')
@@ -182,7 +186,7 @@ def render(rows, outdir):
     (outdir / 'table2.tex').write_text('\n'.join(tex) + '\n')
     (outdir / 'table2.md').write_text('\n'.join(md).rstrip() + '\n')
     (outdir / 'table2_standalone.tex').write_text('\n'.join([
-        r'\documentclass{article}', r'\usepackage[a4paper,margin=15mm]{geometry}',
+        r'\documentclass{article}', r'\usepackage[a3paper,landscape,margin=10mm]{geometry}',
         r'\usepackage{booktabs,longtable}', r'\renewcommand{\thetable}{\Roman{table}}',
         r'\begin{document}', r'\setcounter{table}{1}', r'\input{table2.tex}', r'\end{document}', '']))
 

@@ -21,7 +21,7 @@ class CNN2DHashNet(nn.Module):
         self.fc_2 = nn.Linear(128, hash_bit_length)
         self.relu = nn.ReLU(inplace=True)
 
-    def forward(self, x, return_features=False):
+    def forward(self, x, return_features=False, return_tokens=False):
         # x shape: (B, 1, C, H, W)
         x = x.squeeze(dim=1)
         x = self.conv_1(x)
@@ -29,6 +29,8 @@ class CNN2DHashNet(nn.Module):
         x = self.relu(x)
         x = self.conv_2(x)
         
+        if return_tokens:
+            return x
         # Use adaptive pool to handle variable patch sizes
         x = self.adaptive_pool(x)
         x = x.view(-1, x.shape[1])

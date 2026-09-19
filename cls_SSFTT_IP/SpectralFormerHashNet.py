@@ -128,12 +128,15 @@ class SpectralFormerHashNet(nn.Module):
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout, num_patches, mode)
 
         self.pool = pool
+        if pool not in ('cls', 'all'):
+            raise ValueError('pool must be cls or all')
+        hash_dim = dim * (num_patches + 1) if pool == 'all' else dim
         self.to_latent = nn.Identity()
 
         self.hash_head = nn.Sequential(
-            nn.LayerNorm(dim),
+            nn.LayerNorm(hash_dim),
             nn.Dropout(0.5),
-            nn.Linear(dim, 1024),
+            nn.Linear(hash_dim, 1024),
             nn.ReLU(inplace=True),
             nn.Linear(1024, hash_bit_length)
         )
@@ -152,7 +155,7 @@ class SpectralFormerHashNet(nn.Module):
 
         x = self.transformer(x, mask)
 
-        x = self.to_latent(x[:,0])
+        x = self.to_latent(x.flatten(1) if self.pool == 'all' else x[:,0])
         hash_codes = self.hash_head(x)
 
         if return_features:

@@ -38,13 +38,15 @@ class CNN3DHashNet(nn.Module):
             s0, s1, s2, s3, s4 = x.size()
         return s1 * s2 * s3 * s4
 
-    def forward(self, x, return_features=False):
+    def forward(self, x, return_features=False, return_tokens=False):
         x = F.relu(self.conv1(x))
         x = self.pool1(x)
         x = F.relu(self.conv2(x))
         x = self.pool2(x)
         x = F.relu(self.conv3(x))
         x = F.relu(self.conv4(x))
+        if return_tokens:
+            return x
         pooled = x.view(-1, self.features_size)
         x = self.dropout(pooled)
         hash_codes = self.fc(x)

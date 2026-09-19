@@ -61,7 +61,7 @@ class ContextualHashNet(nn.Module):
 
         self.apply(self.weight_init)
 
-    def forward(self, X, mask=None, return_features=False):
+    def forward(self, X, mask=None, return_features=False, return_tokens=False):
         # Input shape from dataloader: (B, 1, C, H, W)
         # Convert to LeeEtAl expected shape: (B, 1, H, W, BAND)
         x_in = X.permute(0, 1, 3, 4, 2)
@@ -98,6 +98,8 @@ class ContextualHashNet(nn.Module):
         x = F.relu(self.conv7(x))
         x = self.dropout(x)
         
+        if return_tokens:
+            return x
         # Pool spatial dimensions to 1x1
         x = self.avg_pooling(x)
         pooled = x.view(x.size(0), -1)

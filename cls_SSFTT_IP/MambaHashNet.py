@@ -163,7 +163,7 @@ class MambaHashNet(nn.Module):
             nn.Linear(1024, hash_bit_length)
         )
 
-    def forward(self, x, mask=None, return_features=False):
+    def forward(self, x, mask=None, return_features=False, return_tokens=False):
         # Our input from dataset is shape (B, 1, C, H, W)
         # Squeeze the "1" dimension to get (B, C, H, W) for Mamba
         if x.dim() == 5 and x.size(1) == 1:
@@ -172,6 +172,8 @@ class MambaHashNet(nn.Module):
         x = self.patch_embedding(x)
         x = self.mamba(x)
 
+        if return_tokens:
+            return x
         hash_codes = self.hash_head(x)
         
         if return_features:

@@ -7,3 +7,9 @@ output/*.pth
 # OS generated files
 .DS_Store
 *.DS_Store
+
+# Table II training outputs stay on the experiment machine
+/table2/runs/
+/table2/smoke/
+__pycache__/
+.pytest_cache/

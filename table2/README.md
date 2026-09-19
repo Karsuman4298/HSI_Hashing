@@ -1,182 +1,140 @@
-# Table II: CLS-only versus all-features retrieval
+# Table II: CLS versus all features
 
-This implements the **retrieval Table 3 caption quoted in the conversation**, not
-the semantic-segmentation Table 3 in the supplied Agent Attention PDF.
-
-Columns are:
-
-| Backbone | Hashing loss | CLS 16 bits | CLS 32 bits | CLS 64 bits | All 16 bits | All 32 bits | All 64 bits |
-|---|---|---|---|---|---|---|---|
-
-There is a section for each dataset. Entries are mAP percentages. Bold compares
-CLS versus all features **within the same dataset, backbone, loss and bit length**;
-both are bold if their two-decimal displayed values tie. A lone measured value is
-not bold until its comparison is available. Missing results are `--`, never zero.
-
-Default coverage matches your Table I: Houston2013, Houston2018, Trento,
-NiliFossae; SSFTT, Mamba, MoE-Mamba, SSRN, A2S2KResNet, ContextualNet, CNN-2D,
-CNN-3D, HybridSN, MorphFormer, SpectralFormer; CSQ, DPN, DSH, GreedyHash,
-HashNet, IDHN, OrthoHash, DSPCH, DHNN. This is 2,376 measurements, displayed as
-396 rows with six scores each. No new numerical results are available in the
-supplied paper, so the generated initial table is an **unmeasured template**.
-
-## Generate the table
-
-Run from the repository root. Only NumPy is needed for the generator:
+Run training, binary-code evaluation, and table export together from this repository:
 
 ```bash
-python3 -m pip install numpy
-# Already created in this delivery. Run init only for a NEW manifest:
-python3 generate_table2.py init --manifest table2/new_experiments.csv
-
-# Edit table2/experiments.csv with your measured results, then:
-python3 generate_table2.py generate
-
-# Before submission, require every applicable experiment to be present:
-python3 generate_table2.py generate --strict
+python3 run_table2.py --device cuda
 ```
 
-Outputs in `table2/output/`:
+This launches **2,376 experiments**: 11 backbones × 9 losses × 4 HSI datasets ×
+3 hash lengths (16/32/64) × 2 feature variants. Every model has both variants.
+The runner updates CSV, Markdown and LaTeX after each completed experiment.
+Run the identical command again to skip completed runs. An interrupted experiment
+restarts from epoch one; this is experiment-level, not epoch-level, resume.
 
-- `table2_results.csv`: all scores and their provenance, retaining numerical precision.
-- `table2.md`: readable table with two-decimal scores and bold comparisons.
-- `table2.tex`: complete multipage LaTeX table.
-- `table2_standalone.tex`: wrapper that numbers the table **II**.
-- `missing_measurements.txt`: every absent score/experiment.
-
-To compile a PDF with an installed LaTeX distribution:
+The default dataset directories match `run_comprehensive_study.py`. Override them
+on your server if needed:
 
 ```bash
-cd table2/output
+python3 run_table2.py --device cuda \
+  --data houston2013=/path/to/houston13 \
+  --data houston2018=/path/to/Houston18 \
+  --data trento=/path/to/Trento \
+  --data nilifossae=/path/to/NiliFossae
+```
+
+Each directory contains prepatched `HSI_Tr.mat`, `HSI_Te.mat`, `TrLabel.mat`,
+`TeLabel.mat` (the existing loader also supports dataset-prefixed filenames and
+bundled labels). Data patches have shape `[N,H,W,bands]`. The actual patch size
+is read from the files; `--patch` does not resize prepatched inputs. Default PCA
+is 30 channels, training is 100 epochs, batch size 64, learning rate 0.001, seed
+345, and 10% of the test patches are query items. Dataset files are not downloaded.
+
+Use the project's existing PyTorch/scipy/numpy/scikit-learn/einops/h5py/seaborn/
+matplotlib environment. Mamba and MoE-Mamba require the official `mamba_ssm`
+package and a compatible Linux/CUDA environment. No replacement Mamba is used.
+
+Preview every command without training:
+
+```bash
+python3 run_table2.py --dry-run
+```
+
+Try a small real-data sweep first (use a separate output directory):
+
+```bash
+python3 run_table2.py --datasets trento --models ssftt --losses csq \
+  --bits 16 --epochs 1 --device cuda --output_dir table2/smoke
+```
+
+## Feature definitions and reference
+
+The layout follows Table 3 of
+[Vision Transformer Hashing for Image Retrieval](https://github.com/shivram1987/VisionTransformerHashing):
+paired `(cls)` and `(all)` backbone rows, loss groups across columns, 16/32/64-bit
+subcolumns, and a panel for each HSI dataset. The reference's
+`TransformerModel/modeling_cls.py` selects `x[:, 0]`; `modeling.py` flattens the
+encoded token sequence. We use that CLS-versus-concatenation distinction.
+The HSI experiments use mAP@All rather than the RGB datasets' dataset-specific
+retrieval cutoffs in the reference. No reference-paper numbers are copied.
+
+- **SSFTT:** final native CLS token versus concatenated CLS and all learned tokens.
+- **SpectralFormer:** final native CLS token versus CLS and all spectral tokens.
+- **MorphFormer:** final normalized native CLS token versus CLS and all morphology tokens.
+- **Mamba, MoE-Mamba, SSRN, A2S2KResNet, ContextualNet, CNN-2D, CNN-3D, HybridSN:**
+  these backbones have no native CLS token. Both variants extract their final
+  unpooled feature map, convert each spatial/spectral position into a token,
+  project channels to width 64, prepend a learned CLS token, add learned position
+  embeddings, and apply one transformer encoder block (4 heads, FFN width 128,
+  dropout 0.1) followed by LayerNorm. CLS hashes the resulting first token;
+  all hashes the concatenation of every resulting token, including CLS.
+  Their common hash-head form is dropout 0.5 → linear 1024 → ReLU → linear bits.
+  The native pooling/classification heads are bypassed and removed.
+
+The last eight are **new backbone-plus-token-adapter variants**, not unchanged
+Table I architectures. The all-token head has more input weights than CLS.
+Report these definitions in the manuscript; do not relabel native pooled results
+as CLS or reuse Table I scores for these new variants. Native model behavior is
+still available through the trainer's default `--feature_mode native`.
+
+## Evaluation protocol
+
+Both modes use identical prepatched train/test data, PCA fitted on training patches
+only, and identical query/database indices and batch shuffle seeds. The final
+training epoch is evaluated; query mAP is not used to select checkpoints. The
+nine loss implementations are this project's implementations. The runner includes
+learnable loss parameters (CSQ centers and GreedyHash classifier) in the optimizer.
+This differs from the older trainer's model-only optimizer.
+
+Binary codes use -1/+1 (zero logits become +1). Retrieval ranks the full database
+by Hamming distance, breaking ties by saved database order. AP is the mean of
+precision at each relevant rank; a query with no relevant item receives zero.
+Mean AP is reported as a percentage. The saved original test indices must be
+unique and query/database-disjoint; their labels/order are checked across runs.
+The quality/spatial separation of the supplied prepatched train/test split remains
+that of the input dataset. Upstream PCA already applied to MAT files cannot be undone.
+
+Both dataset files and experiment configuration are recorded. Resume refuses to
+mix changed settings, source code, or dataset file size/timestamp metadata in one
+output directory. Use a new `--output_dir` for a different experiment protocol.
+Only one runner should write to a given output directory at a time.
+
+## Outputs
+
+Under `table2/runs/` (or `--output_dir`):
+
+- `config.json`: exact sweep configuration, source digest and data metadata.
+- `runs/DATASET/MODEL/LOSS/BITS/MODE/`: training log, command, model weights,
+  report, binary codes with sample IDs, and completion marker.
+- `experiments.csv`: measured scores with feature definitions and provenance.
+- `output/table2.md`, `table2.tex`, `table2_results.csv`, `missing_measurements.txt`.
+- `output/table2_standalone.tex`: A3 landscape wrapper for the 28-column table.
+
+Bold compares the two modes **within each backbone/loss/bit pair**, matching the
+reference. Both values are bold for ties at two decimal places. Unmeasured cells
+remain `--`. A filtered sweep retains all three bit columns, so unselected bit
+lengths are explicitly unmeasured.
+
+To regenerate the table from completed results without training:
+
+```bash
+python3 generate_table2.py generate \
+  --manifest table2/runs/experiments.csv --outdir table2/runs/output
+cd table2/runs/output
 pdflatex table2_standalone.tex
-pdflatex table2_standalone.tex
 ```
 
-The complete table is too long for one IEEE two-column float. The standalone
-version uses `longtable`; place it in a one-column appendix/supplement or split
-it into smaller floats for the final IEEE manuscript. Do not put `longtable`
-inside `table*`. `table2.tex` requires `booktabs` and `longtable`.
+The checked-in `table2/output/` is an unmeasured layout preview. Running only
+`generate_table2.py generate` does not train models; use `run_table2.py` for training.
+Full dataset scores must be measured on your server.
 
-For only VTS16/VTS32, or any other explicitly selected experiment suite:
+## Standalone result import
 
-```bash
-python3 generate_table2.py init --manifest table2/vts.csv \
-  --models VTS32 VTS16 --losses DSH HashNet GreedyHash IDHN CSQ DPN
-python3 generate_table2.py generate --manifest table2/vts.csv --outdir table2/vts_output
-```
-
-Names select table rows; they do not implement an architecture. In VTS16/VTS32,
-16/32 refer to the architecture's patch configuration, **not** its hash length.
-
-## Option A: import measured mAP
-
-Fill these fields in each CSV row:
-
-- `map_pct`: percentage, e.g. `81.28` rather than `0.8128`.
-- `feature_definition`: exact feature vector used by that trained hashing head.
-- `protocol`: shared evaluation identifier within each dataset, documenting split,
-  preprocessing, database/query membership/order, ranking cutoff, tie handling,
-  checkpoint selection and training seed/aggregation rule.
-- `source`: result file, experiment ID or checkpoint/log reference.
-
-Leave `codes_file` blank if importing only an existing score. Do not reuse your
-Table I numbers as CLS or all-features numbers unless the original experiments
-explicitly establish the feature mode. Do not derive one mode's score from the other.
-
-You can import mAP@K from an existing pipeline only if all compared results use
-that same cutoff and its AP convention, clearly named in `protocol`. The built-in
-code evaluator below implements **full-database mAP**, not mAP@K.
-
-## Option B: calculate mAP from saved codes
-
-The CSV already specifies one NPZ path for each experiment; paths are relative
-to the manifest directory. After evaluating each independently trained model:
-
-```python
-from pathlib import Path
-import numpy as np
-
-path = Path('table2/codes/Houston2013/SSFTT/CSQ/16/cls.npz')
-path.parent.mkdir(parents=True, exist_ok=True)
-np.savez_compressed(
-    path,
-    query_hash=np.where(query_logits >= 0, 1, -1).astype(np.int8),
-    database_hash=np.where(database_logits >= 0, 1, -1).astype(np.int8),
-    query_labels=query_labels,       # [Nq] class IDs, or [Nq, C] binary multi-hot
-    database_labels=database_labels, # same label format/class ordering
-    query_ids=query_sample_ids,      # unique IDs in a shared dataset namespace
-    database_ids=database_sample_ids,
-)
-```
-
-Set `feature_definition` and `protocol` in the CSV. The script computes mAP,
-uses the NPZ as the default source, and checks a supplied score against the codes
-if both are present. All exported code experiments in a dataset must use identical
-query/database IDs, ordering and labels. Query/database overlap is rejected.
-
-The evaluator ranks by Hamming distance, uses database order to break equal-distance
-ties deterministically, defines relevance as equal class (single-label) or any
-shared positive class (multi-label), and averages precision at every relevant rank.
-A query with no relevant database item contributes zero. Returned scores are
-multiplied by 100. It never evaluates float logits as if they were binary codes.
-
-This stable tie rule may differ from an older implementation's `np.argsort`
-default. Re-evaluate both modes using the same rule; do not mix protocols.
-
-## Training/evaluating the whole experiment grid
-
-This generator was originally prepared in `ViTHashing_For_HSI` and copied into
-`HSI_Hashing` for server use. The training code in this repository has not yet
-been connected to the generator. The command below requires an adapter to the
-actual CLS-only/all-features training and evaluation experiments; generating
-the template alone does not launch training.
-
-The generator accepts an optional runner from your actual experiment suite:
-
-```bash
-python3 generate_table2.py generate --runner my_experiments:run_one --strict
-```
-
-The callable receives `(row: dict, manifest_directory: pathlib.Path)` and runs
-one missing experiment. It must return a dict with any of `map_pct`, `codes_file`,
-`source`, `protocol`, `feature_definition`; it must not change the experiment key.
-For example, in a local `my_experiments.py`:
-
-```python
-def run_one(row, manifest_directory):
-    # Use your REAL model factory and training/evaluation code here.
-    # row keys: dataset, backbone, loss, bits, features ('cls' or 'all').
-    # Train a separate hashing head/model for each feature mode and bit length.
-    # Save NPZ arrays as above to manifest_directory / row['codes_file'].
-    # Return provenance after training and evaluation have completed.
-    raise NotImplementedError('Connect the experiment suite that produced Table I')
-```
-
-With that adapter, one command executes missing experiments and generates the
-whole table. The provided generator itself does not implement or train missing
-backbones/losses. It skips rows with an existing score or saved code file.
-
-## Define feature modes before comparison
-
-For a transformer returning `[batch, tokens, channels]` with token zero as CLS:
-
-```python
-cls_features = encoded[:, 0, :]
-all_features = encoded.reshape(encoded.shape[0], -1)  # CLS plus every patch token
-```
-
-Use a separately trained compatible hash head for each mode. Changing the input
-dimension at evaluation time is not a valid ablation. Keep splits, preprocessing,
-training budget, checkpoint-selection rule and loss settings matched. The
-`VTSHSIModel` in the original `ViTHashing_For_HSI` repository uses these definitions
-through `use_all_tokens`; verify the feature extraction in this repository separately.
-
-For CNNs and models without a native CLS token, **do not call global pooling a CLS
-token**. Either define and disclose a separate pooled-versus-all comparison with
-appropriate column names in your manuscript, or set `applicable=no` and describe
-why in `feature_definition`. N/A rows cannot have a numeric score. Leaving the
-initial row as `yes` is only a request for a measurement, not evidence that that
-backbone supports CLS. Verify each implementation before running it.
-
-Full new scores require your actual paired experiment outputs or the complete
-training suite. The attached Table I alone cannot provide those missing results.
+`generate_table2.py init --manifest new.csv` creates a full manifest. Each row
+identifies dataset, backbone, loss, bits and `features` (`cls`/`all`). Supply either
+`map_pct` in [0,100] with `protocol`, `feature_definition`, and `source`, or a
+`codes_file` path relative to the manifest. A code NPZ contains `query_hash`,
+`database_hash`, `query_labels`, `database_labels`, `query_ids`, `database_ids`.
+Codes must be -1/+1; labels can be class IDs or binary multi-hot vectors. Use
+`--strict` during generation to reject an incomplete table. No missing score is
+estimated or invented.

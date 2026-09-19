@@ -101,3 +101,11 @@ When running experiments, the framework will generate the following in your `--o
 - **Markdown Table (`comprehensive_results.md`)**: A nicely formatted table for easy viewing of the final results.
 
 *(Note: Apple Silicon users running locally might need to prepend `PYTORCH_ENABLE_MPS_FALLBACK=1` when running models like ContextualNet that rely on LocalResponseNorm, which is not yet fully supported on MPS. Linux servers with CUDA do not require this.)*
+
+## Table II: CLS-only versus all features
+
+Run `python3 run_table2.py --device cuda` to train both variants for all 11 models,
+nine losses, four datasets, and 16/32/64-bit codes, with automatic resume and table
+export. Models without native CLS tokens receive an explicit token adapter in both
+variants. See [table2/README.md](table2/README.md) for dataset paths, model definitions,
+evaluation protocol, and smaller test runs.

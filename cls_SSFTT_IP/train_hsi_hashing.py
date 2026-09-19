@@ -495,7 +495,11 @@ def create_data_loader(args):
             X_all_flat = X_all.reshape(-1, C)
             
             pca = PCA(n_components=args.pca, whiten=True)
-            X_all_pca_flat = pca.fit_transform(X_all_flat)
+            if args.pca_fit == 'train':
+                pca.fit(Xtrain.reshape(-1, C))
+                X_all_pca_flat = pca.transform(X_all_flat)
+            else:
+                X_all_pca_flat = pca.fit_transform(X_all_flat)
             
             X_all_pca = X_all_pca_flat.reshape(N_tr + N_te, H, W, args.pca)
             
@@ -535,9 +539,14 @@ def create_data_loader(args):
         db_dataset = HSIDataset(Xdb, ydb)
         query_dataset = HSIDataset(Xquery, yquery)
 
-        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True,
+                                                  generator=torch.Generator().manual_seed(args.seed))
         db_loader = torch.utils.data.DataLoader(db_dataset, batch_size=args.batch_size, shuffle=False)
         query_loader = torch.utils.data.DataLoader(query_dataset, batch_size=args.batch_size, shuffle=False)
+        query_loader.dataset.sample_ids = query_idx
+        db_loader.dataset.sample_ids = db_idx
+        if not len(train_loader) or not len(query_dataset) or not len(db_dataset):
+            raise ValueError('Empty train batches, query set or database; check batch_size and query_ratio')
         return train_loader, db_loader, query_loader, None, num_classes
 
     # ── Load ──────────────────────────────────────────────────
@@ -794,7 +803,8 @@ def create_data_loader(args):
 # ──────────────────────────────────────────────────────────────
 
 def train(train_loader, db_loader, query_loader, num_classes, args):
-    device = torch.device("cuda:0" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
+    device = torch.device(args.device if args.device != 'auto' else
+                          ("cuda:0" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")))
     print(f"\nDevice: {device}")
     
     import copy
@@ -804,7 +814,7 @@ def train(train_loader, db_loader, query_loader, num_classes, args):
     
     def evaluate_checkpoint(epoch_num, phase_name):
         nonlocal best_mAP, best_state
-        if epoch_num not in eval_epochs:
+        if args.checkpoint_selection == 'last' or epoch_num not in eval_epochs:
             return
             
         print(f"\n[Checkpoint] Phase {phase_name}, Epoch {epoch_num}")
@@ -840,7 +850,7 @@ def train(train_loader, db_loader, query_loader, num_classes, args):
             hash_bit_length=args.hash_bit_length,
             num_tokens=args.num_tokens,
             dim=64,
-            use_all_tokens=True,
+            use_all_tokens=args.feature_mode != 'cls',
             num_classes=num_classes,
             pca_channels=actual_pca_channels
         ).to(device)
@@ -872,15 +882,21 @@ def train(train_loader, db_loader, query_loader, num_classes, args):
         net = HybridSNHashNet(in_channels=actual_pca_channels, patch_size=args.patch, hash_bit_length=args.hash_bit_length).to(device)
     elif args.model == "morphformer":
         from MorphFormerHashNet import MorphFormerHashNet
-        net = MorphFormerHashNet(in_channels=actual_pca_channels, patch_size=args.patch, hash_bit_length=args.hash_bit_length).to(device)
+        net = MorphFormerHashNet(in_channels=actual_pca_channels, patch_size=args.patch, hash_bit_length=args.hash_bit_length, use_all_tokens=args.feature_mode == 'all').to(device)
     elif args.model == "spectralformer":
         from SpectralFormerHashNet import SpectralFormerHashNet
-        net = SpectralFormerHashNet(in_channels=actual_pca_channels, hash_bit_length=args.hash_bit_length, patch_size=args.patch).to(device)
+        net = SpectralFormerHashNet(in_channels=actual_pca_channels, hash_bit_length=args.hash_bit_length, patch_size=args.patch, pool='all' if args.feature_mode == 'all' else 'cls').to(device)
     else:
         raise ValueError("Unknown model")
 
+    if args.feature_mode != 'native' and args.model not in ('ssftt', 'spectralformer', 'morphformer'):
+        from TokenFeatureHashNet import TokenFeatureHashNet
+        net = TokenFeatureHashNet(net, sample_data.unsqueeze(0).to(device),
+                                  args.hash_bit_length, args.feature_mode).to(device)
+
     num_params = sum(p.numel() for p in net.parameters())
     print(f"Number of parameters : {num_params}")
+    torch.manual_seed(args.seed)
     if args.loss_type == "csq":
         criterion = CSQLoss(bit_length=args.hash_bit_length, num_classes=num_classes, lambda_q=args.lambda_q).to(device)
     elif args.loss_type == "dpn":
@@ -907,7 +923,10 @@ def train(train_loader, db_loader, query_loader, num_classes, args):
     else:
         supcon_criterion = None
 
-    optimizer = optim.Adam(net.parameters(), lr=args.lr)
+    parameters = list(net.parameters())
+    if args.optimize_loss_parameters:
+        parameters += [p for p in criterion.parameters() if p.requires_grad]
+    optimizer = optim.Adam(parameters, lr=args.lr)
 
     # --- Pre-Training Diagnostic Check ---
     net.eval()
@@ -962,6 +981,8 @@ def train(train_loader, db_loader, query_loader, num_classes, args):
             else:
                 batch_loss = loss + args.lambda_pair * loss_pair
 
+            if not torch.isfinite(batch_loss):
+                raise ValueError('Non-finite training loss; refusing to export an invalid experiment')
             batch_loss.backward()
             optimizer.step()
             total_loss += batch_loss.item()
@@ -1011,14 +1032,13 @@ def calculate_mAP(query_codes, query_labels, db_codes, db_labels):
     APs = []
     
     # Calculate Similarity (dot product is proportional to Hamming distance for binary codes)
-    similarity = torch.matmul(query_codes, db_codes.t())
     
     for i in range(num_queries):
         query_label = query_labels[i]
-        sim_row = similarity[i]
+        sim_row = torch.mv(db_codes, query_codes[i])
         
         # Sort database indices by descending similarity
-        _, sorted_indices = torch.sort(sim_row, descending=True)
+        _, sorted_indices = torch.sort(sim_row, descending=True, stable=True)
         sorted_db_labels = db_labels[sorted_indices]
         
         # Binary array of correctness
@@ -1131,6 +1151,13 @@ def parse_args():
     p.add_argument("--lambda_q", type=float, default=0.0, help="Quantization penalty weight")
     p.add_argument("--lambda_pair", type=float, default=0.0, help="Continuous-binary pairwise similarity preservation loss weight")
     p.add_argument("--num_tokens", type=int, default=4, help="Number of learned tokens for SSFTT compression")
+    p.add_argument('--feature_mode', choices=['native', 'cls', 'all'], default='native')
+    p.add_argument('--device', default='auto', choices=['auto', 'cpu', 'cuda', 'mps'])
+    p.add_argument('--checkpoint_selection', choices=['best_query', 'last'], default='best_query')
+    p.add_argument('--pca_fit', choices=['global', 'train'], default='global')
+    p.add_argument('--optimize_loss_parameters', action='store_true')
+    p.add_argument('--binary_only', action='store_true', help='Skip continuous retrieval and PR curves')
+    p.add_argument('--export_codes', type=str, help='Save binary retrieval codes and original test sample IDs (prepatched data only)')
 
     # ── output ────────────────────────────────────────────────
     p.add_argument(
@@ -1147,6 +1174,10 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
+    if args.feature_mode != 'native' and args.model == 'cnn':
+        raise ValueError('Use cnn2d or cnn3d for the token ablation')
+    if args.export_codes and (not args.prepatched_dir or args.random_hash_eval or args.random_noise_eval):
+        raise ValueError('Code export requires prepatched data and normal model evaluation')
 
     import random
     random.seed(args.seed)
@@ -1191,6 +1222,8 @@ if __name__ == "__main__":
         f"{args.model}_{args.dataset}_{args.loss_type}_"
         f"pca{args.pca}_patch{args.patch}_bits{args.hash_bit_length}"
     )
+    if args.run_name is None and args.feature_mode != 'native':
+        run_name += '_' + args.feature_mode
     weight_path = os.path.join(
         args.output_dir, f"{run_name}_params.pth",
     )
@@ -1213,7 +1246,10 @@ if __name__ == "__main__":
         mAP_cont = float("nan")
     else:
         mAP_bin, q_codes_b, q_labels_b, db_codes_b, db_labels_b = evaluate_retrieval(device, net, query_loader, db_loader, inject_noise=args.random_noise_eval, continuous=False)
-        mAP_cont, q_codes_c, q_labels_c, db_codes_c, db_labels_c = evaluate_retrieval(device, net, query_loader, db_loader, inject_noise=args.random_noise_eval, continuous=True)
+        if args.binary_only:
+            mAP_cont = float('nan')
+        else:
+            mAP_cont, q_codes_c, q_labels_c, db_codes_c, db_labels_c = evaluate_retrieval(device, net, query_loader, db_loader, inject_noise=args.random_noise_eval, continuous=True)
         mAP = mAP_bin  # just to keep downstream variables happy
         
     test_time = time.perf_counter() - tic
@@ -1230,6 +1266,9 @@ if __name__ == "__main__":
     with open(result_path, "w") as f:
         f.write(f"Dataset       : {args.dataset}\n")
         f.write(f"Model         : {args.model}\n")
+        f.write(f"Features      : {args.feature_mode}\n")
+        f.write(f"Checkpoint    : {args.checkpoint_selection}\n")
+        f.write(f"PCA fit       : {args.pca_fit}\n")
         f.write(f"Run name      : {run_name}\n")
         f.write(f"PCA components: {args.pca}\n")
         f.write(f"Patch size    : {args.patch}\n")
@@ -1245,7 +1284,15 @@ if __name__ == "__main__":
     print(f"Report saved → {result_path}")
 
     # ── PR Curve Evaluation ───────────────────────────────────
-    if not args.random_hash_eval:
+    if args.export_codes:
+        np.savez_compressed(args.export_codes,
+                            query_hash=q_codes_b.numpy().astype(np.int8),
+                            database_hash=db_codes_b.numpy().astype(np.int8),
+                            query_labels=q_labels_b.numpy(), database_labels=db_labels_b.numpy(),
+                            query_ids=query_loader.dataset.sample_ids,
+                            database_ids=db_loader.dataset.sample_ids)
+
+    if not args.random_hash_eval and not args.binary_only:
         try:
             from utils.tools import draw_range
         except ImportError:
