@@ -103,6 +103,7 @@ def main():
     p.add_argument('--query_ratio', type=float, default=0.1)
     p.add_argument('--output_dir', type=Path, default=Path('table2/runs'))
     p.add_argument('--dry-run', action='store_true', help='Print commands without training or writing files')
+    p.add_argument('--force_resume', action='store_true', help='Resume even if source code or settings have changed')
     args = p.parse_args()
     if min(args.epochs, args.batch_size, args.num_tokens) < 1 or not 0 < args.query_ratio < 1 or args.lr <= 0:
         p.error('Use positive epochs, batch_size, num_tokens, lr and 0 < query_ratio < 1')
@@ -128,7 +129,10 @@ def main():
     args.output_dir.mkdir(parents=True, exist_ok=True)
     config_path = args.output_dir / 'config.json'
     if config_path.exists() and json.loads(config_path.read_text()) != config:
-        raise ValueError('Settings, source code or data files changed; use a new --output_dir to avoid mixing results')
+        if not args.force_resume:
+            raise ValueError('Settings, source code or data files changed; use a new --output_dir to avoid mixing results')
+        else:
+            print("Warning: Source code or settings changed, but continuing due to --force_resume", flush=True)
     atomic_json(config_path, config)
     rows = list(table.make_grid([DATASETS[d] for d in args.datasets], [MODELS[m] for m in args.models], [LOSSES[l] for l in args.losses]))
     # Keep all three bit columns. Unselected experiments stay explicitly unmeasured.
