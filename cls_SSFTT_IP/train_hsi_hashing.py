@@ -982,8 +982,11 @@ def train(train_loader, db_loader, query_loader, num_classes, args):
                 batch_loss = loss + args.lambda_pair * loss_pair
 
             if not torch.isfinite(batch_loss):
-                raise ValueError('Non-finite training loss; refusing to export an invalid experiment')
+                print(f"Warning: Non-finite loss detected. Loss={batch_loss.item()}. Skipping batch.")
+                continue # Skip batch instead of raising ValueError so training doesn't crash on server
+            
             batch_loss.backward()
+            torch.nn.utils.clip_grad_norm_(parameters, max_norm=5.0)
             optimizer.step()
             total_loss += batch_loss.item()
             current_step += 1

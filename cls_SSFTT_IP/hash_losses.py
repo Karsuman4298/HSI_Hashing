@@ -57,8 +57,8 @@ class CSQLoss(nn.Module):
         target_centers = self.hash_centers.to(hash_codes.device)[targets.to(torch.long)]
 
         cosine = torch.sum(hash_codes * target_centers, dim=1)
-        hash_norm = torch.norm(hash_codes, p=2, dim=1) + 1e-8
-        center_norm = torch.norm(target_centers, p=2, dim=1) + 1e-8
+        hash_norm = torch.sqrt(torch.sum(hash_codes ** 2, dim=1) + 1e-8)
+        center_norm = torch.sqrt(torch.sum(target_centers ** 2, dim=1) + 1e-8)
         cosine_sim = cosine / (hash_norm * center_norm)
 
         class_loss = 1.0 - cosine_sim
@@ -107,8 +107,8 @@ class DPNLoss(nn.Module):
         # Classification loss (semantic similarity to centers)
         target_centers = self.hash_centers.to(hash_codes.device)[targets.to(torch.long)]
         cosine = torch.sum(hash_codes * target_centers, dim=1)
-        hash_norm = torch.norm(hash_codes, p=2, dim=1) + 1e-8
-        center_norm = torch.norm(target_centers, p=2, dim=1) + 1e-8
+        hash_norm = torch.sqrt(torch.sum(hash_codes ** 2, dim=1) + 1e-8)
+        center_norm = torch.sqrt(torch.sum(target_centers ** 2, dim=1) + 1e-8)
         cosine_sim = cosine / (hash_norm * center_norm)
         class_loss = 1.0 - cosine_sim
         
